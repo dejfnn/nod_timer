@@ -28,7 +28,13 @@
       "Bash(streamlit:*)",
       "Bash(timeout:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo:*)",
+      "Bash(git:*)",
+      "Bash(pip install:*)",
+      "Bash(gh pr:*)",
+      "Bash(mv pages:*)"
     ]
   }
 }

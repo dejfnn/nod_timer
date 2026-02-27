@@ -8,13 +8,13 @@ import streamlit as st
 
 from config import APP_NAME, APP_VERSION
 from db.migrations import init_db
-from pages.clients import render as render_clients
-from pages.dashboard import render as render_dashboard
-from pages.projects import render as render_projects
-from pages.reports import render as render_reports
-from pages.settings import render as render_settings
-from pages.tags import render as render_tags
-from pages.timer import render as render_timer
+from views.clients import render as render_clients
+from views.dashboard import render as render_dashboard
+from views.projects import render as render_projects
+from views.reports import render as render_reports
+from views.settings import render as render_settings
+from views.tags import render as render_tags
+from views.timer import render as render_timer
 from ui.styles import GLOBAL_STYLES
 
 
