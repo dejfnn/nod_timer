@@ -49,6 +49,11 @@ CREATE TABLE IF NOT EXISTS time_entry_tags (
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_time_entries_start_time ON time_entries(start_time);
 CREATE INDEX IF NOT EXISTS idx_time_entries_project_id ON time_entries(project_id);

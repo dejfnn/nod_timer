@@ -8,6 +8,7 @@ junction table via the database ON DELETE CASCADE constraint.
 import streamlit as st
 
 from models import tag as tag_model
+from ui.components import empty_state
 
 
 def render() -> None:
@@ -32,7 +33,7 @@ def _render_new_tag_form() -> None:
             else:
                 try:
                     tag_model.create(name=name.strip())
-                    st.success(f"Tag '{name.strip()}' created.")
+                    st.toast(f"Tag '{name.strip()}' created.", icon="✅")
                     st.rerun()
                 except Exception:
                     st.error(f"Tag '{name.strip()}' already exists.")
@@ -43,7 +44,11 @@ def _render_tag_list() -> None:
     tags = tag_model.get_all()
 
     if not tags:
-        st.info("No tags yet. Create one above!")
+        empty_state(
+            "No tags yet.",
+            icon="🏷️",
+            hint="Create your first tag using the form above!",
+        )
         return
 
     # Handle pending delete confirmation
@@ -99,7 +104,7 @@ def _render_edit_tag_form(t: tag_model.Tag) -> None:
         else:
             try:
                 tag_model.update(t.id, name=new_name.strip())
-                st.success(f"Tag '{new_name.strip()}' updated.")
+                st.toast(f"Tag '{new_name.strip()}' updated.", icon="✅")
                 st.rerun()
             except Exception:
                 st.error(f"Tag name '{new_name.strip()}' already exists.")
@@ -128,7 +133,7 @@ def _render_delete_confirmation(tag_id: int) -> None:
         if st.button("Yes, delete", key=f"confirm_del_tag_{tag_id}"):
             tag_model.delete(tag_id)
             st.session_state.confirm_delete_tag_id = None
-            st.success(f"Tag '{tag_name}' deleted.")
+            st.toast(f"Tag '{tag_name}' deleted.", icon="🗑️")
             st.rerun()
     with col_no:
         if st.button("Cancel", key=f"cancel_del_tag_{tag_id}"):

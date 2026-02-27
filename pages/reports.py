@@ -1,7 +1,8 @@
 """Reports page for TimeFlow.
 
 Provides Summary, Detailed, and Weekly report tabs with date range
-picker, project/client/tag/billable filters, and interactive charts.
+picker, project/client/tag/billable filters, interactive charts,
+and CSV/PDF export functionality.
 """
 
 from datetime import datetime, timedelta
@@ -13,8 +14,10 @@ from db.connection import get_connection
 from models import client as client_model
 from models import project as project_model
 from models import tag as tag_model
+from services import export as export_svc
 from services import reports as report_svc
 from ui.charts import summary_horizontal_bar_chart, weekly_heatmap
+from ui.components import empty_state
 from ui.state import format_duration
 
 
@@ -62,10 +65,13 @@ def render() -> None:
             end_date = st.date_input("End date", value=today, key="report_end")
 
     st.caption(f"Showing data from **{start_date}** to **{end_date}**")
+    date_range_str = f"{start_date} to {end_date}"
 
     # ------------------------------------------------------------------
     # Filters
     # ------------------------------------------------------------------
+    filters_parts: list[str] = []
+
     with st.expander("Filters", expanded=False):
         filter_col1, filter_col2 = st.columns(2)
 
@@ -82,6 +88,8 @@ def render() -> None:
                 [project_options[n] for n in selected_project_names]
                 if selected_project_names else None
             )
+            if selected_project_names:
+                filters_parts.append(f"Projects: {', '.join(selected_project_names)}")
 
             # Client filter
             all_clients = client_model.get_all(include_archived=True, conn=conn)
@@ -95,6 +103,8 @@ def render() -> None:
                 [client_options[n] for n in selected_client_names]
                 if selected_client_names else None
             )
+            if selected_client_names:
+                filters_parts.append(f"Clients: {', '.join(selected_client_names)}")
 
         with filter_col2:
             # Tag filter
@@ -109,6 +119,8 @@ def render() -> None:
                 [tag_options[n] for n in selected_tag_names]
                 if selected_tag_names else None
             )
+            if selected_tag_names:
+                filters_parts.append(f"Tags: {', '.join(selected_tag_names)}")
 
             # Billable filter
             billable_option = st.selectbox(
@@ -120,9 +132,12 @@ def render() -> None:
             billable: bool | None = None
             if billable_option == "Billable only":
                 billable = True
+                filters_parts.append("Billable only")
             elif billable_option == "Non-billable only":
                 billable = False
+                filters_parts.append("Non-billable only")
 
+    filters_text = "; ".join(filters_parts) if filters_parts else "None"
     start_str = start_date.isoformat()
     end_str = end_date.isoformat()
 
@@ -144,30 +159,35 @@ def render() -> None:
             key="summary_group_by",
         )
 
-        if group_by == "Project":
-            summary_df = report_svc.summary_by_project(
-                conn, start_str, end_str,
-                project_ids=project_ids, client_ids=client_ids,
-                tag_ids=tag_ids, billable=billable,
-            )
-            group_col = "project_name"
-        elif group_by == "Client":
-            summary_df = report_svc.summary_by_client(
-                conn, start_str, end_str,
-                project_ids=project_ids, client_ids=client_ids,
-                tag_ids=tag_ids, billable=billable,
-            )
-            group_col = "client_name"
-        else:
-            summary_df = report_svc.summary_by_day(
-                conn, start_str, end_str,
-                project_ids=project_ids, client_ids=client_ids,
-                tag_ids=tag_ids, billable=billable,
-            )
-            group_col = "date"
+        with st.spinner("Generating summary report..."):
+            if group_by == "Project":
+                summary_df = report_svc.summary_by_project(
+                    conn, start_str, end_str,
+                    project_ids=project_ids, client_ids=client_ids,
+                    tag_ids=tag_ids, billable=billable,
+                )
+                group_col = "project_name"
+            elif group_by == "Client":
+                summary_df = report_svc.summary_by_client(
+                    conn, start_str, end_str,
+                    project_ids=project_ids, client_ids=client_ids,
+                    tag_ids=tag_ids, billable=billable,
+                )
+                group_col = "client_name"
+            else:
+                summary_df = report_svc.summary_by_day(
+                    conn, start_str, end_str,
+                    project_ids=project_ids, client_ids=client_ids,
+                    tag_ids=tag_ids, billable=billable,
+                )
+                group_col = "date"
 
         if summary_df.empty:
-            st.info("No entries found for the selected date range and filters.")
+            empty_state(
+                "No entries found for the selected date range and filters.",
+                icon="📊",
+                hint="Try adjusting the date range or removing some filters.",
+            )
         else:
             # Chart
             fig = summary_horizontal_bar_chart(summary_df, group_col)
@@ -203,18 +223,61 @@ def render() -> None:
                 f"${grand_billable:.2f} billable"
             )
 
+            # Export buttons
+            st.divider()
+            exp_col1, exp_col2 = st.columns(2)
+            with exp_col1:
+                csv_data = export_svc.dataframe_to_csv(
+                    summary_df,
+                    columns=[group_col, "entries_count", "total_seconds", "total_hours", "billable_amount"],
+                    rename_map={
+                        group_col: "Group",
+                        "entries_count": "Entries",
+                        "total_seconds": "Total Seconds",
+                        "total_hours": "Total Hours",
+                        "billable_amount": "Billable Amount",
+                    },
+                )
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name=f"summary_{group_by.lower()}_{start_str}_{end_str}.csv",
+                    mime="text/csv",
+                    key="summary_csv_download",
+                )
+            with exp_col2:
+                pdf_data = export_svc.summary_report_to_pdf(
+                    summary_df,
+                    group_col=group_col,
+                    title=f"Summary Report by {group_by}",
+                    date_range=date_range_str,
+                    filters_text=filters_text,
+                )
+                st.download_button(
+                    label="Download PDF",
+                    data=pdf_data,
+                    file_name=f"summary_{group_by.lower()}_{start_str}_{end_str}.pdf",
+                    mime="application/pdf",
+                    key="summary_pdf_download",
+                )
+
     # ==================================================================
     # Detailed tab
     # ==================================================================
     with tab_detailed:
-        detail_df = report_svc.detailed_report(
-            conn, start_str, end_str,
-            project_ids=project_ids, client_ids=client_ids,
-            tag_ids=tag_ids, billable=billable,
-        )
+        with st.spinner("Generating detailed report..."):
+            detail_df = report_svc.detailed_report(
+                conn, start_str, end_str,
+                project_ids=project_ids, client_ids=client_ids,
+                tag_ids=tag_ids, billable=billable,
+            )
 
         if detail_df.empty:
-            st.info("No entries found for the selected date range and filters.")
+            empty_state(
+                "No entries found for the selected date range and filters.",
+                icon="📋",
+                hint="Try adjusting the date range or removing some filters.",
+            )
         else:
             # Subtotals per day
             subtotals = report_svc.detailed_day_subtotals(detail_df)
@@ -257,18 +320,68 @@ def render() -> None:
                 f"${grand_billable:.2f} billable"
             )
 
+            # Export buttons
+            st.divider()
+            exp_col1, exp_col2 = st.columns(2)
+            with exp_col1:
+                csv_data = export_svc.dataframe_to_csv(
+                    detail_df,
+                    columns=[
+                        "date", "description", "project_name", "client_name",
+                        "tags", "start_time_display", "stop_time_display",
+                        "duration_display", "billable",
+                    ],
+                    rename_map={
+                        "date": "Date",
+                        "description": "Description",
+                        "project_name": "Project",
+                        "client_name": "Client",
+                        "tags": "Tags",
+                        "start_time_display": "Start",
+                        "stop_time_display": "Stop",
+                        "duration_display": "Duration",
+                        "billable": "Billable",
+                    },
+                )
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name=f"detailed_{start_str}_{end_str}.csv",
+                    mime="text/csv",
+                    key="detailed_csv_download",
+                )
+            with exp_col2:
+                pdf_data = export_svc.detailed_report_to_pdf(
+                    detail_df,
+                    title="Detailed Report",
+                    date_range=date_range_str,
+                    filters_text=filters_text,
+                )
+                st.download_button(
+                    label="Download PDF",
+                    data=pdf_data,
+                    file_name=f"detailed_{start_str}_{end_str}.pdf",
+                    mime="application/pdf",
+                    key="detailed_pdf_download",
+                )
+
     # ==================================================================
     # Weekly tab
     # ==================================================================
     with tab_weekly:
-        weekly_df = report_svc.weekly_report(
-            conn, start_str, end_str,
-            project_ids=project_ids, client_ids=client_ids,
-            tag_ids=tag_ids, billable=billable,
-        )
+        with st.spinner("Generating weekly report..."):
+            weekly_df = report_svc.weekly_report(
+                conn, start_str, end_str,
+                project_ids=project_ids, client_ids=client_ids,
+                tag_ids=tag_ids, billable=billable,
+            )
 
         if weekly_df.empty:
-            st.info("No entries found for the selected date range and filters.")
+            empty_state(
+                "No entries found for the selected date range and filters.",
+                icon="📅",
+                hint="Try adjusting the date range or removing some filters.",
+            )
         else:
             # Heatmap chart
             fig = weekly_heatmap(weekly_df)
@@ -287,4 +400,15 @@ def render() -> None:
                 display_weekly,
                 use_container_width=True,
                 hide_index=True,
+            )
+
+            # Export button (CSV only for weekly - pivot table is tricky for PDF)
+            st.divider()
+            csv_data = export_svc.weekly_report_to_csv(weekly_df)
+            st.download_button(
+                label="Download CSV",
+                data=csv_data,
+                file_name=f"weekly_{start_str}_{end_str}.csv",
+                mime="text/csv",
+                key="weekly_csv_download",
             )
