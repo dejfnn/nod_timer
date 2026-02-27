@@ -1,7 +1,8 @@
 """Projects management page — list, create, edit, archive projects.
 
 Provides the render() function called from app.py to display
-the projects management UI.
+the projects management UI with card-based layout, visual color picker,
+and tracked-time progress bars.
 """
 
 import streamlit as st
@@ -9,123 +10,131 @@ import streamlit as st
 from config import DEFAULT_PROJECT_COLOR, PROJECT_COLORS
 from models import client as client_model
 from models import project as project_model
-from ui.components import empty_state
+from ui.components import color_swatch_picker, empty_state
 from ui.state import format_duration
+from ui.styles import MANAGEMENT_STYLES
 
 
 def render() -> None:
     """Render the complete projects management page."""
-    st.title("Projects")
+    st.markdown(MANAGEMENT_STYLES, unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="tf-page-content">',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="tf-page-title">Projects</div>',
+        unsafe_allow_html=True,
+    )
 
     _render_new_project_form()
-    st.divider()
     _render_project_list()
 
-
-def _render_color_picker(key_prefix: str, current_color: str = DEFAULT_PROJECT_COLOR) -> str:
-    """Render a color picker with preset palette.
-
-    Args:
-        key_prefix: Prefix for widget keys to ensure uniqueness.
-        current_color: Currently selected color.
-
-    Returns:
-        Selected hex color string.
-    """
-    st.write("Color")
-    cols = st.columns(len(PROJECT_COLORS))
-    selected_color = current_color
-
-    for i, color in enumerate(PROJECT_COLORS):
-        with cols[i]:
-            border = "3px solid white" if color == current_color else "1px solid #555"
-            if st.button(
-                " ",
-                key=f"{key_prefix}_color_{i}",
-                help=color,
-                use_container_width=True,
-            ):
-                selected_color = color
-
-            st.markdown(
-                f'<div style="width:100%;height:24px;background-color:{color};'
-                f'border-radius:4px;border:{border};margin-top:-10px;"></div>',
-                unsafe_allow_html=True,
-            )
-
-    return selected_color
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_new_project_form() -> None:
-    """Render the 'New Project' creation form."""
-    with st.expander("New Project", expanded=False):
-        # Initialize session state for color selection
-        if "new_project_color" not in st.session_state:
-            st.session_state.new_project_color = DEFAULT_PROJECT_COLOR
+    """Render the 'New Project' creation form in a prominent card with accent border."""
+    # Initialize session state for color selection
+    if "new_project_color" not in st.session_state:
+        st.session_state.new_project_color = DEFAULT_PROJECT_COLOR
 
-        with st.form(key="new_project_form"):
-            name = st.text_input("Project name", key="new_proj_name")
+    st.markdown(
+        '<div class="tf-new-form-card">'
+        '<div class="form-title">+ New Project</div>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
-            # Color picker using selectbox with preset colors
-            color_index = 0
-            if st.session_state.new_project_color in PROJECT_COLORS:
-                color_index = PROJECT_COLORS.index(st.session_state.new_project_color)
-            selected_color = st.selectbox(
-                "Color",
-                options=PROJECT_COLORS,
-                index=color_index,
-                format_func=lambda c: f"{c} {chr(9632)}",
-                key="new_proj_color_select",
+    with st.form(key="new_project_form"):
+        st.markdown('<div class="tf-form-label">Project Name</div>', unsafe_allow_html=True)
+        name = st.text_input("Project name", key="new_proj_name", label_visibility="collapsed")
+
+        # Color picker using selectbox with preset colors
+        color_index = 0
+        if st.session_state.new_project_color in PROJECT_COLORS:
+            color_index = PROJECT_COLORS.index(st.session_state.new_project_color)
+        selected_color = st.selectbox(
+            "Color",
+            options=PROJECT_COLORS,
+            index=color_index,
+            format_func=lambda c: f"{c} {chr(9632)}",
+            key="new_proj_color_select",
+        )
+
+        # Preview selected color as a swatch grid display
+        _render_color_preview_grid(selected_color)
+
+        # Client dropdown
+        clients = client_model.get_all()
+        client_options = {"(No client)": None}
+        for c in clients:
+            client_options[c.name] = c.id
+        client_names = list(client_options.keys())
+
+        st.markdown('<div class="tf-form-label">Client</div>', unsafe_allow_html=True)
+        selected_client_name = st.selectbox(
+            "Client", client_names, key="new_proj_client", label_visibility="collapsed"
+        )
+
+        col_bill, col_rate = st.columns(2)
+        with col_bill:
+            st.markdown('<div class="tf-form-label">Billable</div>', unsafe_allow_html=True)
+            billable = st.checkbox("Billable", key="new_proj_billable", label_visibility="collapsed")
+        with col_rate:
+            st.markdown('<div class="tf-form-label">Hourly Rate</div>', unsafe_allow_html=True)
+            hourly_rate = st.number_input(
+                "Hourly rate",
+                min_value=0.0,
+                step=1.0,
+                key="new_proj_rate",
+                label_visibility="collapsed",
             )
 
-            # Preview selected color
-            st.markdown(
-                f'<div style="width:60px;height:24px;background-color:{selected_color};'
-                f'border-radius:4px;border:1px solid #555;"></div>',
-                unsafe_allow_html=True,
+        submitted = st.form_submit_button("Create Project", use_container_width=True)
+
+    if submitted:
+        if not name.strip():
+            st.error("Project name cannot be empty.")
+        else:
+            client_id = client_options[selected_client_name]
+            project_model.create(
+                name=name.strip(),
+                color=selected_color,
+                client_id=client_id,
+                billable=billable,
+                hourly_rate=hourly_rate,
             )
+            st.toast(f"Project '{name.strip()}' created.", icon="✅")
+            st.rerun()
 
-            # Client dropdown
-            clients = client_model.get_all()
-            client_options = {"(No client)": None}
-            for c in clients:
-                client_options[c.name] = c.id
-            client_names = list(client_options.keys())
-            selected_client_name = st.selectbox(
-                "Client", client_names, key="new_proj_client"
-            )
 
-            col_bill, col_rate = st.columns(2)
-            with col_bill:
-                billable = st.checkbox("Billable", key="new_proj_billable")
-            with col_rate:
-                hourly_rate = st.number_input(
-                    "Hourly rate",
-                    min_value=0.0,
-                    step=1.0,
-                    key="new_proj_rate",
-                )
+def _render_color_preview_grid(selected_color: str) -> None:
+    """Render a visual 4x4 grid showing all project colors with selected indicator.
 
-            submitted = st.form_submit_button("Create Project", use_container_width=True)
+    Args:
+        selected_color: The currently selected hex color.
+    """
+    swatches_html = ""
+    for color in PROJECT_COLORS:
+        sel_class = "selected" if color == selected_color else ""
+        swatches_html += (
+            f'<div class="tf-color-swatch {sel_class}" '
+            f'style="background-color: {color};">'
+            f'<span class="checkmark">&#10003;</span>'
+            f'</div>'
+        )
 
-        if submitted:
-            if not name.strip():
-                st.error("Project name cannot be empty.")
-            else:
-                client_id = client_options[selected_client_name]
-                project_model.create(
-                    name=name.strip(),
-                    color=selected_color,
-                    client_id=client_id,
-                    billable=billable,
-                    hourly_rate=hourly_rate,
-                )
-                st.toast(f"Project '{name.strip()}' created.", icon="✅")
-                st.rerun()
+    st.markdown(
+        f'<div class="tf-form-label">Color Preview</div>'
+        f'<div class="tf-color-grid">{swatches_html}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def _render_project_list() -> None:
-    """Render the list of all projects with edit/archive controls."""
+    """Render the list of all projects as styled cards with edit/archive controls."""
     show_archived = st.checkbox("Show archived projects", key="show_archived_projects")
 
     projects = project_model.get_all(include_archived=True) if show_archived else project_model.get_all()
@@ -138,18 +147,31 @@ def _render_project_list() -> None:
         )
         return
 
+    # Compute max tracked time for relative progress bars
+    max_tracked = 0
+    tracked_times: dict[int, int] = {}
     for proj in projects:
-        _render_project_row(proj)
+        total_seconds = project_model.get_total_tracked_time(proj.id)
+        tracked_times[proj.id] = total_seconds
+        if total_seconds > max_tracked:
+            max_tracked = total_seconds
+
+    for proj in projects:
+        _render_project_card(proj, tracked_times.get(proj.id, 0), max_tracked)
 
 
-def _render_project_row(proj: project_model.Project) -> None:
-    """Render a single project row with details and controls.
+def _render_project_card(
+    proj: project_model.Project,
+    total_seconds: int,
+    max_tracked: int,
+) -> None:
+    """Render a single project as a styled card.
 
     Args:
         proj: The Project to display.
+        total_seconds: Total tracked seconds for this project.
+        max_tracked: Maximum tracked seconds across all projects (for relative bar).
     """
-    # Get tracked time
-    total_seconds = project_model.get_total_tracked_time(proj.id)
     total_formatted = format_duration(total_seconds)
     hours_decimal = total_seconds / 3600
 
@@ -160,45 +182,60 @@ def _render_project_row(proj: project_model.Project) -> None:
         if client:
             client_name = client.name
 
-    # Archive label
-    archive_label = " [Archived]" if proj.archived else ""
-
-    # Main row
-    col_color, col_name, col_client, col_billable, col_time, col_actions = st.columns(
-        [0.5, 2, 1.5, 1, 1.5, 1.5]
+    # Build badge HTML
+    client_badge = (
+        f'<span class="client-badge">{client_name}</span>' if client_name else ""
     )
-    with col_color:
-        st.markdown(
-            f'<div style="width:20px;height:20px;border-radius:50%;'
-            f'background-color:{proj.color};margin-top:8px;"></div>',
-            unsafe_allow_html=True,
-        )
-    with col_name:
-        st.markdown(f"**{proj.name}**{archive_label}")
-    with col_client:
-        st.text(client_name or "-")
-    with col_billable:
-        if proj.billable:
-            st.text(f"${proj.hourly_rate:.2f}/h")
-        else:
-            st.text("Not billable")
-    with col_time:
-        st.text(f"{total_formatted} ({hours_decimal:.1f}h)")
-    with col_actions:
+    billable_badge = (
+        f'<span class="billable-badge">${proj.hourly_rate:.2f}/h</span>'
+        if proj.billable
+        else ""
+    )
+    archived_badge = (
+        '<span class="archived-badge">Archived</span>' if proj.archived else ""
+    )
+
+    # Progress bar width relative to project with most time
+    progress_pct = (total_seconds / max_tracked * 100) if max_tracked > 0 else 0
+
+    # Render the card HTML
+    st.markdown(
+        f"""
+        <div class="tf-project-card" style="border-left-color: {proj.color};">
+            <div class="project-top-row">
+                <span class="project-name">{proj.name}</span>
+                {client_badge}
+                {billable_badge}
+                {archived_badge}
+            </div>
+            <div class="project-bottom-row">
+                <div class="tf-mini-progress">
+                    <div class="fill" style="width: {progress_pct:.1f}%; background: {proj.color};"></div>
+                </div>
+                <span class="tracked-hours">{total_formatted} ({hours_decimal:.1f}h)</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Action buttons row: archive/unarchive + edit expander
+    col_archive, col_edit = st.columns([1, 5])
+    with col_archive:
         if proj.archived:
-            if st.button("Unarchive", key=f"unarchive_proj_{proj.id}"):
+            if st.button("📦 Unarchive", key=f"unarchive_proj_{proj.id}"):
                 project_model.update(proj.id, archived=False)
                 st.rerun()
         else:
-            if st.button("Archive", key=f"archive_proj_{proj.id}"):
+            if st.button("📦", key=f"archive_proj_{proj.id}", help="Archive project"):
                 project_model.update(proj.id, archived=True)
                 st.rerun()
+    with col_edit:
+        pass  # Spacer
 
     # Edit in expander
     with st.expander(f"Edit {proj.name}", expanded=False):
         _render_edit_project_form(proj)
-
-    st.markdown("---")
 
 
 def _render_edit_project_form(proj: project_model.Project) -> None:
@@ -208,8 +245,10 @@ def _render_edit_project_form(proj: project_model.Project) -> None:
         proj: The Project being edited.
     """
     with st.form(key=f"edit_project_{proj.id}"):
+        st.markdown('<div class="tf-form-label">Project Name</div>', unsafe_allow_html=True)
         new_name = st.text_input(
-            "Project name", value=proj.name, key=f"edit_proj_name_{proj.id}"
+            "Project name", value=proj.name, key=f"edit_proj_name_{proj.id}",
+            label_visibility="collapsed",
         )
 
         # Color picker
@@ -224,12 +263,8 @@ def _render_edit_project_form(proj: project_model.Project) -> None:
             key=f"edit_proj_color_{proj.id}",
         )
 
-        # Preview selected color
-        st.markdown(
-            f'<div style="width:60px;height:24px;background-color:{new_color};'
-            f'border-radius:4px;border:1px solid #555;"></div>',
-            unsafe_allow_html=True,
-        )
+        # Show visual color grid preview
+        _render_color_preview_grid_for_edit(new_color, proj.id)
 
         # Client dropdown
         clients = client_model.get_all()
@@ -245,25 +280,31 @@ def _render_edit_project_form(proj: project_model.Project) -> None:
                     current_client_idx = i
                     break
 
+        st.markdown('<div class="tf-form-label">Client</div>', unsafe_allow_html=True)
         selected_client_name = st.selectbox(
             "Client",
             client_names,
             index=current_client_idx,
             key=f"edit_proj_client_{proj.id}",
+            label_visibility="collapsed",
         )
 
         col_bill, col_rate = st.columns(2)
         with col_bill:
+            st.markdown('<div class="tf-form-label">Billable</div>', unsafe_allow_html=True)
             new_billable = st.checkbox(
-                "Billable", value=proj.billable, key=f"edit_proj_bill_{proj.id}"
+                "Billable", value=proj.billable, key=f"edit_proj_bill_{proj.id}",
+                label_visibility="collapsed",
             )
         with col_rate:
+            st.markdown('<div class="tf-form-label">Hourly Rate</div>', unsafe_allow_html=True)
             new_rate = st.number_input(
                 "Hourly rate",
                 min_value=0.0,
                 step=1.0,
                 value=proj.hourly_rate,
                 key=f"edit_proj_rate_{proj.id}",
+                label_visibility="collapsed",
             )
 
         save_clicked = st.form_submit_button("Save changes", use_container_width=True)
@@ -283,3 +324,27 @@ def _render_edit_project_form(proj: project_model.Project) -> None:
             )
             st.toast(f"Project '{new_name.strip()}' updated.", icon="✅")
             st.rerun()
+
+
+def _render_color_preview_grid_for_edit(selected_color: str, project_id: int) -> None:
+    """Render a visual 4x4 grid showing all project colors for edit context.
+
+    Args:
+        selected_color: The currently selected hex color.
+        project_id: Project ID used for uniqueness.
+    """
+    swatches_html = ""
+    for color in PROJECT_COLORS:
+        sel_class = "selected" if color == selected_color else ""
+        swatches_html += (
+            f'<div class="tf-color-swatch {sel_class}" '
+            f'style="background-color: {color};">'
+            f'<span class="checkmark">&#10003;</span>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div class="tf-form-label">Color Preview</div>'
+        f'<div class="tf-color-grid">{swatches_html}</div>',
+        unsafe_allow_html=True,
+    )

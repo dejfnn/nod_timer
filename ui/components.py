@@ -1,7 +1,8 @@
 """Reusable UI components for TimeFlow.
 
 Provides timer_display(), entry_card(), project_badge(), empty_state(),
-show_toast(), nav_item(), and other shared Streamlit components.
+show_toast(), nav_item(), color_swatch_picker(), tag_pill(),
+and other shared Streamlit components.
 """
 
 from datetime import datetime
@@ -511,4 +512,77 @@ def capacity_bar(percent: float) -> None:
         </div>
         """,
         unsafe_allow_html=True,
+    )
+
+
+def color_swatch_picker(
+    colors: list[str],
+    selected_color: str,
+    key_prefix: str,
+) -> str:
+    """Render a visual 4x4 grid of color swatches with a checkmark on the selected one.
+
+    The picker is rendered as pure HTML for the visual grid, and Streamlit buttons
+    underneath handle the selection interaction. The selected color is returned.
+
+    Args:
+        colors: List of hex color strings to display.
+        selected_color: Currently selected hex color.
+        key_prefix: Prefix for Streamlit widget keys (must be unique per form context).
+
+    Returns:
+        The hex color string that is currently selected (may change on button click).
+    """
+    # Build the visual HTML grid
+    swatches_html = ""
+    for color in colors:
+        sel_class = "selected" if color == selected_color else ""
+        swatches_html += (
+            f'<div class="tf-color-swatch {sel_class}" '
+            f'style="background-color: {color};">'
+            f'<span class="checkmark">&#10003;</span>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div class="tf-form-label">Color</div>'
+        f'<div class="tf-color-grid">{swatches_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Render hidden-ish selection buttons in a 4-column grid
+    result_color = selected_color
+    cols_per_row = 4
+    for row_start in range(0, len(colors), cols_per_row):
+        row_colors = colors[row_start : row_start + cols_per_row]
+        cols = st.columns(len(row_colors))
+        for i, color in enumerate(row_colors):
+            with cols[i]:
+                label = "\u2713" if color == selected_color else "\u00a0"
+                if st.button(
+                    label,
+                    key=f"{key_prefix}_swatch_{row_start + i}",
+                    help=color,
+                    use_container_width=True,
+                ):
+                    result_color = color
+
+    return result_color
+
+
+def tag_pill(name: str, usage_count: int) -> str:
+    """Return an HTML snippet for a tag displayed as a pill badge with a usage count.
+
+    Args:
+        name: The tag name to display.
+        usage_count: Number of time entries using this tag.
+
+    Returns:
+        HTML string for a styled tag pill badge.
+    """
+    return (
+        f'<div class="tf-tag-badge">'
+        f'<span class="tag-name">{name}</span>'
+        f'<span class="usage-count">{usage_count}</span>'
+        f'</div>'
     )

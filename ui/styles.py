@@ -17,6 +17,7 @@ Color palette:
 Timer-specific styles (Phase 2) are in ``TIMER_STYLES``.
 Dashboard-specific styles (Phase 3) are in ``DASHBOARD_STYLES``.
 Reports-specific styles (Phase 3) are in ``REPORTS_STYLES``.
+Management page styles (Phase 4) are in ``MANAGEMENT_STYLES``.
 """
 
 # ---------------------------------------------------------------------------
@@ -1526,6 +1527,410 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
     border: 1px solid var(--tf-border);
     display: inline-block;
     margin-bottom: 12px;
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# Management pages styles (Phase 4 — projects, clients, tags, final polish)
+# ---------------------------------------------------------------------------
+MANAGEMENT_STYLES: str = """
+<style>
+/* ===================================================================
+   PAGE TITLE UNDERLINE DECORATION
+   =================================================================== */
+.tf-page-title {
+    font-size: var(--tf-font-title);
+    font-weight: 700;
+    color: var(--tf-text-primary);
+    letter-spacing: -0.02em;
+    padding-bottom: 8px;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--tf-border-strong);
+    display: inline-block;
+}
+
+/* ===================================================================
+   FADE-IN PAGE TRANSITION
+   =================================================================== */
+.tf-page-content {
+    animation: fadeIn 0.35s ease-out;
+}
+
+/* ===================================================================
+   FORM LABEL STYLING — smaller, muted, uppercase
+   =================================================================== */
+.tf-form-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tf-text-muted);
+    margin-bottom: 4px;
+}
+
+/* ===================================================================
+   SECTION SPACING
+   =================================================================== */
+.tf-section {
+    margin-bottom: 1.5rem;
+}
+
+/* ===================================================================
+   PROJECT CARD — with large left color stripe (8px)
+   =================================================================== */
+.tf-project-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    padding: 20px 20px 20px 24px;
+    margin-bottom: 12px;
+    border-left: 8px solid var(--tf-border-strong);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    animation: slideUp 0.35s ease-out;
+}
+
+.tf-project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tf-shadow-md);
+}
+
+.tf-project-card .project-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.tf-project-card .project-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--tf-text-primary);
+}
+
+.tf-project-card .client-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: var(--tf-bg-elevated);
+    color: var(--tf-text-secondary);
+    border: 1px solid var(--tf-border);
+}
+
+.tf-project-card .billable-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: rgba(46, 204, 113, 0.12);
+    color: var(--tf-success);
+    border: 1px solid rgba(46, 204, 113, 0.25);
+}
+
+.tf-project-card .archived-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: rgba(90, 98, 112, 0.15);
+    color: var(--tf-text-muted);
+    border: 1px solid rgba(90, 98, 112, 0.25);
+}
+
+.tf-project-card .project-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Mini progress bar for tracked time */
+.tf-mini-progress {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+    overflow: hidden;
+    max-width: 200px;
+}
+
+.tf-mini-progress .fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.tf-project-card .tracked-hours {
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    color: var(--tf-text-secondary);
+}
+
+/* ===================================================================
+   NEW PROJECT / NEW FORM — prominent card with accent border
+   =================================================================== */
+.tf-new-form-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-accent);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0 12px rgba(0, 212, 170, 0.08);
+}
+
+.tf-new-form-card .form-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--tf-text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ===================================================================
+   COLOR SWATCH PICKER — 4x4 grid
+   =================================================================== */
+.tf-color-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    max-width: 220px;
+    margin: 8px 0;
+}
+
+.tf-color-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+}
+
+.tf-color-swatch:hover {
+    transform: scale(1.12);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.tf-color-swatch.selected {
+    border-color: white;
+    transform: scale(1.08);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.25);
+}
+
+.tf-color-swatch .checkmark {
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.tf-color-swatch.selected .checkmark {
+    display: block;
+}
+
+/* ===================================================================
+   ARCHIVE ICON BUTTON — subtle
+   =================================================================== */
+.tf-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: var(--tf-radius-sm);
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: 1px solid var(--tf-border);
+    background: transparent;
+    color: var(--tf-text-muted);
+    transition: all 0.15s ease;
+}
+
+.tf-icon-btn:hover {
+    background: var(--tf-bg-hover);
+    color: var(--tf-text-primary);
+    border-color: var(--tf-border-strong);
+}
+
+/* ===================================================================
+   CLIENT CARD
+   =================================================================== */
+.tf-client-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    animation: slideUp 0.35s ease-out;
+}
+
+.tf-client-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tf-shadow-md);
+}
+
+.tf-client-card .client-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.tf-client-card .client-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--tf-text-primary);
+}
+
+.tf-client-card .project-count-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(74, 144, 217, 0.12);
+    color: var(--tf-primary);
+    border: 1px solid rgba(74, 144, 217, 0.25);
+}
+
+/* Project pills within client card */
+.tf-client-projects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.tf-client-project-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.tf-client-project-pill .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* ===================================================================
+   TAG GRID — pill badges layout
+   =================================================================== */
+.tf-tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.tf-tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    background: var(--tf-bg-elevated);
+    color: var(--tf-text-secondary);
+    border: 1px solid var(--tf-border-strong);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    animation: slideUp 0.3s ease-out;
+}
+
+.tf-tag-badge:hover {
+    background: var(--tf-bg-hover);
+    color: var(--tf-text-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--tf-shadow-sm);
+}
+
+.tf-tag-badge .tag-name {
+    font-weight: 600;
+}
+
+.tf-tag-badge .usage-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(74, 144, 217, 0.15);
+    color: var(--tf-primary);
+    padding: 0 5px;
+}
+
+/* ===================================================================
+   NEW TAG INLINE INPUT
+   =================================================================== */
+.tf-new-tag-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+/* ===================================================================
+   SETTINGS CARD SECTIONS
+   =================================================================== */
+.tf-settings-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tf-settings-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--tf-shadow-sm);
+}
+
+.tf-settings-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--tf-text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--tf-border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tf-settings-card .card-title .icon {
+    font-size: 1.2rem;
 }
 </style>
 """
