@@ -1,7 +1,7 @@
 """Reusable UI components for TimeFlow.
 
 Provides timer_display(), entry_card(), project_badge(), empty_state(),
-show_toast(), and other shared Streamlit components.
+show_toast(), nav_item(), and other shared Streamlit components.
 """
 
 from datetime import datetime
@@ -13,6 +13,22 @@ from models import project as project_model
 from models import tag as tag_model
 from models import time_entry as time_entry_model
 from ui.state import format_duration
+
+
+def nav_item(icon: str, label: str) -> str:
+    """Build a navigation item string with icon and label for sidebar radio options.
+
+    Combines a Unicode icon character with a page label to create a formatted
+    navigation entry used in the sidebar radio group.
+
+    Args:
+        icon: A Unicode/emoji character to display as the nav icon.
+        label: The page name displayed next to the icon.
+
+    Returns:
+        Formatted string like "⊞ Dashboard" for use as a radio option label.
+    """
+    return f"{icon}  {label}"
 
 
 def timer_display(elapsed_seconds: int, is_running: bool) -> None:
