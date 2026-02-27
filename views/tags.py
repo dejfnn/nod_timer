@@ -1,53 +1,77 @@
 """Tags management page — list, create, edit, delete tags.
 
 Provides the render() function called from app.py to display
-the tags management UI. Deleting a tag cascades to the time_entry_tags
+the tags management UI. Tags are displayed as a grid of pill badges
+with usage counts. Deleting a tag cascades to the time_entry_tags
 junction table via the database ON DELETE CASCADE constraint.
 """
 
 import streamlit as st
 
 from models import tag as tag_model
-from ui.components import empty_state
+from ui.components import empty_state, tag_pill
+from ui.styles import MANAGEMENT_STYLES
 
 
 def render() -> None:
     """Render the complete tags management page."""
-    st.title("Tags")
+    st.markdown(MANAGEMENT_STYLES, unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="tf-page-content">',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="tf-page-title">Tags</div>',
+        unsafe_allow_html=True,
+    )
 
     _render_new_tag_form()
-    st.divider()
-    _render_tag_list()
+    _render_tag_grid()
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_new_tag_form() -> None:
-    """Render the 'New Tag' creation form."""
-    with st.expander("New Tag", expanded=False):
-        with st.form(key="new_tag_form"):
-            name = st.text_input("Tag name", key="new_tag_name")
-            submitted = st.form_submit_button("Create Tag", use_container_width=True)
+    """Render the 'New Tag' as a simple inline input with '+' button."""
+    st.markdown(
+        '<div class="tf-form-label">New Tag</div>',
+        unsafe_allow_html=True,
+    )
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        name = st.text_input(
+            "Tag name",
+            key="new_tag_name",
+            label_visibility="collapsed",
+            placeholder="Enter tag name...",
+        )
+    with col_btn:
+        add_clicked = st.button("+", key="add_tag_btn", use_container_width=True, help="Create tag")
 
-        if submitted:
-            if not name.strip():
-                st.error("Tag name cannot be empty.")
-            else:
-                try:
-                    tag_model.create(name=name.strip())
-                    st.toast(f"Tag '{name.strip()}' created.", icon="✅")
-                    st.rerun()
-                except Exception:
-                    st.error(f"Tag '{name.strip()}' already exists.")
+    if add_clicked:
+        if not name or not name.strip():
+            st.error("Tag name cannot be empty.")
+        else:
+            try:
+                tag_model.create(name=name.strip())
+                st.toast(f"Tag '{name.strip()}' created.", icon="✅")
+                st.rerun()
+            except Exception:
+                st.error(f"Tag '{name.strip()}' already exists.")
+
+    st.markdown('<div class="tf-section"></div>', unsafe_allow_html=True)
 
 
-def _render_tag_list() -> None:
-    """Render the list of all tags with usage count, edit, and delete controls."""
+def _render_tag_grid() -> None:
+    """Render all tags as a grid of pill badges with usage counts."""
     tags = tag_model.get_all()
 
     if not tags:
         empty_state(
             "No tags yet.",
             icon="🏷️",
-            hint="Create your first tag using the form above!",
+            hint="Create your first tag using the input above!",
         )
         return
 
@@ -56,34 +80,39 @@ def _render_tag_list() -> None:
     if confirm_tag_id is not None:
         _render_delete_confirmation(confirm_tag_id)
 
+    # Render all tags as pills in a visual grid
+    pills_html = ""
     for t in tags:
-        _render_tag_row(t)
+        usage_count = tag_model.get_usage_count(t.id)
+        pills_html += tag_pill(t.name, usage_count)
+
+    st.markdown(
+        f'<div class="tf-tag-grid">{pills_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="tf-section"></div>', unsafe_allow_html=True)
+
+    # Render individual tag edit/delete rows below the grid
+    for t in tags:
+        _render_tag_edit_row(t)
 
 
-def _render_tag_row(t: tag_model.Tag) -> None:
-    """Render a single tag row with details and controls.
+def _render_tag_edit_row(t: tag_model.Tag) -> None:
+    """Render edit and delete controls for a single tag, expandable inline.
 
     Args:
-        t: The Tag to display.
+        t: The Tag to display controls for.
     """
     usage_count = tag_model.get_usage_count(t.id)
+    entry_word = "entry" if usage_count == 1 else "entries"
 
-    col_name, col_usage, col_actions = st.columns([3, 2, 2])
-    with col_name:
-        st.markdown(f"**{t.name}**")
-    with col_usage:
-        entry_word = "entry" if usage_count == 1 else "entries"
-        st.text(f"Used in {usage_count} {entry_word}")
-    with col_actions:
+    with st.expander(f"{t.name} — {usage_count} {entry_word}", expanded=False):
+        _render_edit_tag_form(t)
+
         if st.button("Delete", key=f"delete_tag_{t.id}"):
             st.session_state.confirm_delete_tag_id = t.id
             st.rerun()
-
-    # Edit in expander
-    with st.expander(f"Edit {t.name}", expanded=False):
-        _render_edit_tag_form(t)
-
-    st.markdown("---")
 
 
 def _render_edit_tag_form(t: tag_model.Tag) -> None:
@@ -93,8 +122,10 @@ def _render_edit_tag_form(t: tag_model.Tag) -> None:
         t: The Tag being edited.
     """
     with st.form(key=f"edit_tag_{t.id}"):
+        st.markdown('<div class="tf-form-label">Tag Name</div>', unsafe_allow_html=True)
         new_name = st.text_input(
-            "Tag name", value=t.name, key=f"edit_tag_name_{t.id}"
+            "Tag name", value=t.name, key=f"edit_tag_name_{t.id}",
+            label_visibility="collapsed",
         )
         save_clicked = st.form_submit_button("Save changes", use_container_width=True)
 
