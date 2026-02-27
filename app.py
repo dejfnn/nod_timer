@@ -9,7 +9,9 @@ import streamlit as st
 from config import APP_NAME, APP_VERSION
 from db.migrations import init_db
 from pages.clients import render as render_clients
+from pages.dashboard import render as render_dashboard
 from pages.projects import render as render_projects
+from pages.reports import render as render_reports
 from pages.tags import render as render_tags
 from pages.timer import render as render_timer
 
@@ -32,13 +34,15 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigation",
-        options=["Timer", "Projects", "Clients", "Tags", "Reports"],
+        options=["Dashboard", "Timer", "Projects", "Clients", "Tags", "Reports"],
         index=0,
         key="nav_radio",
     )
 
     # Page routing
-    if page == "Timer":
+    if page == "Dashboard":
+        render_dashboard()
+    elif page == "Timer":
         render_timer()
     elif page == "Projects":
         render_projects()
@@ -47,8 +51,7 @@ def main() -> None:
     elif page == "Tags":
         render_tags()
     elif page == "Reports":
-        st.title("Reports")
-        st.info("Reports will be available in a future update.")
+        render_reports()
 
 
 if __name__ == "__main__":
