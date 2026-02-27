@@ -13,6 +13,8 @@ Color palette:
     - Success green: #2ecc71
     - Danger red: #e74c3c
     - Warning amber: #f0a500
+
+Timer-specific styles (Phase 2) are in ``TIMER_STYLES``.
 """
 
 # ---------------------------------------------------------------------------
@@ -601,6 +603,400 @@ EXPORT_STYLES: str = """
     display: flex;
     gap: 8px;
     margin-top: 8px;
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# Timer page styles (Phase 2 — premium timer redesign)
+# ---------------------------------------------------------------------------
+TIMER_STYLES: str = """
+<style>
+/* ===================================================================
+   PREMIUM TIMER DISPLAY
+   =================================================================== */
+
+/* Timer card — centred container with gradient border */
+.tf-timer-card {
+    background: var(--tf-bg-card);
+    border-radius: 16px;
+    padding: 32px 24px 28px;
+    margin: 0 auto 20px;
+    max-width: 480px;
+    text-align: center;
+    position: relative;
+    border: 2px solid var(--tf-border);
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Gradient border when timer is running (teal glow) */
+.tf-timer-card.running {
+    border-color: var(--tf-accent);
+    box-shadow: 0 0 24px rgba(0, 212, 170, 0.18),
+                0 0 48px rgba(0, 212, 170, 0.06);
+    animation: timerPulse 2s infinite;
+}
+
+/* Muted border when timer is stopped */
+.tf-timer-card.stopped {
+    border-color: var(--tf-border-strong);
+}
+
+@keyframes timerPulse {
+    0% {
+        box-shadow: 0 0 24px rgba(0, 212, 170, 0.18),
+                    0 0 48px rgba(0, 212, 170, 0.06);
+    }
+    50% {
+        box-shadow: 0 0 32px rgba(0, 212, 170, 0.30),
+                    0 0 64px rgba(0, 212, 170, 0.10);
+    }
+    100% {
+        box-shadow: 0 0 24px rgba(0, 212, 170, 0.18),
+                    0 0 48px rgba(0, 212, 170, 0.06);
+    }
+}
+
+/* Status label above timer — "TRACKING" / "READY" */
+.tf-timer-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tf-timer-status.tracking {
+    color: var(--tf-success);
+}
+
+.tf-timer-status.ready {
+    color: var(--tf-text-muted);
+}
+
+/* Green pulsing dot next to "TRACKING" */
+.tf-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.tf-status-dot.active {
+    background-color: var(--tf-success);
+    animation: dotPulse 1.5s infinite;
+}
+
+.tf-status-dot.inactive {
+    background-color: var(--tf-text-muted);
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Time digits — large monospace */
+.tf-timer-digits {
+    font-size: 5rem;
+    font-weight: 700;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 4px;
+    color: var(--tf-text-primary);
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Blinking colon separator when running */
+.tf-timer-colon {
+    display: inline-block;
+    min-width: 0.4em;
+    text-align: center;
+}
+
+.tf-timer-colon.blink {
+    animation: colonBlink 1s steps(1) infinite;
+}
+
+@keyframes colonBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+}
+
+/* ===================================================================
+   HERO INPUT (description field)
+   =================================================================== */
+.tf-hero-input {
+    margin-bottom: 12px;
+}
+
+/* Override Streamlit input inside hero-input wrapper */
+.tf-hero-input .stTextInput > div > div > input {
+    font-size: 1.15rem !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid var(--tf-border-strong) !important;
+    border-radius: 0 !important;
+    padding: 8px 4px !important;
+    color: var(--tf-text-primary) !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.tf-hero-input .stTextInput > div > div > input:focus {
+    border-bottom-color: var(--tf-accent) !important;
+    box-shadow: none !important;
+}
+
+.tf-hero-input .stTextInput > div > div > input::placeholder {
+    color: var(--tf-text-muted) !important;
+    font-style: italic;
+}
+
+/* ===================================================================
+   GRADIENT ACTION BUTTONS (Start / Stop)
+   =================================================================== */
+
+/* Start button — green gradient */
+.tf-btn-start .stButton > button {
+    background: linear-gradient(135deg, var(--tf-success), #27ae60) !important;
+    color: white !important;
+    border: none !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    padding: 0.65rem 1.5rem !important;
+    border-radius: var(--tf-radius-md) !important;
+    letter-spacing: 0.03em !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.tf-btn-start .stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(46, 204, 113, 0.35) !important;
+}
+
+/* Stop button — red gradient */
+.tf-btn-stop .stButton > button {
+    background: linear-gradient(135deg, var(--tf-danger), #c0392b) !important;
+    color: white !important;
+    border: none !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    padding: 0.65rem 1.5rem !important;
+    border-radius: var(--tf-radius-md) !important;
+    letter-spacing: 0.03em !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.tf-btn-stop .stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 16px rgba(231, 76, 60, 0.35) !important;
+}
+
+/* ===================================================================
+   RUNNING INFO BAR (compact bar below timer when running)
+   =================================================================== */
+.tf-running-bar {
+    background: var(--tf-bg-elevated);
+    border: 1px solid var(--tf-border);
+    border-radius: var(--tf-radius-md);
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tf-running-bar .desc {
+    font-weight: 500;
+    color: var(--tf-text-primary);
+    flex: 1;
+    min-width: 100px;
+}
+
+/* Project pill / chip — colored background */
+.tf-project-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.tf-project-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* ===================================================================
+   ENTRY CARDS (redesigned with project color border)
+   =================================================================== */
+.tf-entry-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: var(--tf-radius-md);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--tf-border-strong);
+    transition: background-color 0.2s ease, transform 0.15s ease;
+    animation: slideUp 0.35s ease-out;
+}
+
+.tf-entry-card:hover {
+    background-color: var(--tf-bg-hover);
+    transform: translateX(2px);
+}
+
+.tf-entry-desc {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--tf-text-primary);
+    margin-bottom: 4px;
+}
+
+.tf-entry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.tf-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    background: var(--tf-bg-elevated);
+    color: var(--tf-text-secondary);
+    border: 1px solid var(--tf-border);
+}
+
+.tf-entry-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.tf-entry-time-range {
+    font-size: 0.85rem;
+    color: var(--tf-text-secondary);
+}
+
+.tf-entry-duration {
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--tf-text-primary);
+}
+
+/* Delete button styling */
+.tf-btn-delete .stButton > button {
+    color: var(--tf-danger) !important;
+    background: transparent !important;
+    border: 1px solid rgba(231, 76, 60, 0.3) !important;
+    font-size: 0.85rem !important;
+}
+
+.tf-btn-delete .stButton > button:hover {
+    background: rgba(231, 76, 60, 0.1) !important;
+    border-color: var(--tf-danger) !important;
+}
+
+/* ===================================================================
+   MANUAL ENTRY CARD
+   =================================================================== */
+.tf-manual-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.tf-manual-header {
+    padding: 14px 18px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--tf-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.tf-manual-header .icon {
+    font-size: 1.1rem;
+    color: var(--tf-accent);
+}
+
+/* ===================================================================
+   RUNNING TOTAL BAR (gradient background)
+   =================================================================== */
+.tf-running-total {
+    text-align: center;
+    padding: 16px 20px;
+    background: linear-gradient(135deg,
+        rgba(0, 212, 170, 0.08),
+        rgba(74, 144, 217, 0.08));
+    border: 1px solid rgba(0, 212, 170, 0.18);
+    border-radius: var(--tf-radius-md);
+    margin-top: 16px;
+}
+
+.tf-running-total .label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--tf-text-muted);
+    margin-bottom: 4px;
+}
+
+.tf-running-total .total-duration {
+    font-size: 1.8rem;
+    font-weight: 700;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--tf-accent);
+}
+
+.tf-running-total .total-hours {
+    font-size: 0.95rem;
+    color: var(--tf-text-secondary);
+    margin-top: 2px;
+}
+
+.tf-running-total .progress-bar {
+    margin-top: 10px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.tf-running-total .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--tf-accent), var(--tf-primary));
+    transition: width 0.4s ease;
 }
 </style>
 """
