@@ -20,3 +20,23 @@ TIMEZONE: str = os.environ.get("TIMEFLOW_TIMEZONE", "Europe/Prague")
 DATETIME_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
 DATE_FORMAT: str = "%Y-%m-%d"
 TIME_FORMAT: str = "%H:%M:%S"
+
+# Project color palette (16 preset colors, similar to Toggl)
+PROJECT_COLORS: list[str] = [
+    "#4A90D9",  # Blue
+    "#E74C3C",  # Red
+    "#2ECC71",  # Green
+    "#F39C12",  # Orange
+    "#9B59B6",  # Purple
+    "#1ABC9C",  # Teal
+    "#E67E22",  # Dark Orange
+    "#3498DB",  # Light Blue
+    "#E91E63",  # Pink
+    "#00BCD4",  # Cyan
+    "#8BC34A",  # Light Green
+    "#FF5722",  # Deep Orange
+    "#607D8B",  # Blue Grey
+    "#795548",  # Brown
+    "#FFC107",  # Amber
+    "#673AB7",  # Deep Purple
+]

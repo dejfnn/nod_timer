@@ -203,6 +203,34 @@ def update(
     )
 
 
+def get_total_tracked_time(
+    project_id: int, conn: sqlite3.Connection | None = None
+) -> int:
+    """Get the total tracked time in seconds for a project.
+
+    Sums duration_seconds from all completed time entries linked to this project.
+    Running entries (stop_time IS NULL) are excluded from the sum.
+
+    Args:
+        project_id: The project ID to query.
+        conn: Optional database connection.
+
+    Returns:
+        Total tracked seconds for the project (0 if no entries).
+    """
+    if conn is None:
+        conn = get_connection()
+
+    cursor = conn.execute(
+        """SELECT COALESCE(SUM(duration_seconds), 0) AS total
+        FROM time_entries
+        WHERE project_id = ? AND duration_seconds IS NOT NULL""",
+        (project_id,),
+    )
+    row = cursor.fetchone()
+    return int(row["total"])
+
+
 def delete(project_id: int, conn: sqlite3.Connection | None = None) -> bool:
     """Delete a project by ID.
 

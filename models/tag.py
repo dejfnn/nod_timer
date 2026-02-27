@@ -120,6 +120,29 @@ def update(
     return Tag(id=tag_id, name=new_name, created_at=existing.created_at)
 
 
+def get_usage_count(
+    tag_id: int, conn: sqlite3.Connection | None = None
+) -> int:
+    """Get the number of time entries using this tag.
+
+    Args:
+        tag_id: The tag ID to query.
+        conn: Optional database connection.
+
+    Returns:
+        Number of time entries associated with this tag.
+    """
+    if conn is None:
+        conn = get_connection()
+
+    cursor = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM time_entry_tags WHERE tag_id = ?",
+        (tag_id,),
+    )
+    row = cursor.fetchone()
+    return int(row["cnt"])
+
+
 def delete(tag_id: int, conn: sqlite3.Connection | None = None) -> bool:
     """Delete a tag by ID.
 
