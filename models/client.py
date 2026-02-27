@@ -149,6 +149,52 @@ def update(
     )
 
 
+def has_active_projects(
+    client_id: int, conn: sqlite3.Connection | None = None
+) -> bool:
+    """Check whether a client has any non-archived (active) projects.
+
+    Args:
+        client_id: The client ID to check.
+        conn: Optional database connection.
+
+    Returns:
+        True if the client has at least one non-archived project.
+    """
+    if conn is None:
+        conn = get_connection()
+
+    cursor = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM projects WHERE client_id = ? AND archived = 0",
+        (client_id,),
+    )
+    row = cursor.fetchone()
+    return int(row["cnt"]) > 0
+
+
+def get_project_count(
+    client_id: int, conn: sqlite3.Connection | None = None
+) -> int:
+    """Get the number of projects associated with a client.
+
+    Args:
+        client_id: The client ID to query.
+        conn: Optional database connection.
+
+    Returns:
+        Number of projects linked to this client.
+    """
+    if conn is None:
+        conn = get_connection()
+
+    cursor = conn.execute(
+        "SELECT COUNT(*) AS cnt FROM projects WHERE client_id = ?",
+        (client_id,),
+    )
+    row = cursor.fetchone()
+    return int(row["cnt"])
+
+
 def delete(client_id: int, conn: sqlite3.Connection | None = None) -> bool:
     """Delete a client by ID.
 
