@@ -32,21 +32,51 @@ def nav_item(icon: str, label: str) -> str:
 
 
 def timer_display(elapsed_seconds: int, is_running: bool) -> None:
-    """Render the large timer display showing HH:MM:SS.
+    """Render the premium timer display inside a styled card.
+
+    Shows a large HH:MM:SS timer with:
+    - Gradient border (teal glow when running, muted when stopped)
+    - 5rem font-size digits with tabular-nums
+    - Pulsing glow animation when running
+    - Status label: "TRACKING" (green dot) or "READY"
+    - Blinking colon separator when running
 
     Args:
         elapsed_seconds: Number of seconds to display.
         is_running: Whether the timer is currently running (affects styling).
     """
     formatted = format_duration(elapsed_seconds)
-    color = "#E74C3C" if is_running else "#2ECC71"
+    # Split into HH, MM, SS for individual colon styling
+    parts = formatted.split(":")
+    hours, minutes, seconds = parts[0], parts[1], parts[2]
+
+    card_class = "running" if is_running else "stopped"
+    colon_class = "tf-timer-colon blink" if is_running else "tf-timer-colon"
+
+    if is_running:
+        status_html = (
+            '<div class="tf-timer-status tracking">'
+            '<span class="tf-status-dot active"></span> TRACKING'
+            '</div>'
+        )
+    else:
+        status_html = (
+            '<div class="tf-timer-status ready">'
+            '<span class="tf-status-dot inactive"></span> READY'
+            '</div>'
+        )
+
     st.markdown(
         f"""
-        <div style="text-align: center; padding: 20px;">
-            <span style="font-size: 4rem; font-weight: bold; color: {color};
-                         font-family: 'Courier New', monospace;">
-                {formatted}
-            </span>
+        <div class="tf-timer-card {card_class}">
+            {status_html}
+            <div class="tf-timer-digits">
+                <span>{hours}</span>
+                <span class="{colon_class}">:</span>
+                <span>{minutes}</span>
+                <span class="{colon_class}">:</span>
+                <span>{seconds}</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -114,7 +144,14 @@ def tag_labels(tag_ids: list[int]) -> str:
 
 
 def entry_card(entry: time_entry_model.TimeEntry, index: int) -> None:
-    """Render a single time entry as an expandable card with edit/delete.
+    """Render a single time entry as a styled card with edit/delete.
+
+    Each card features:
+    - Left color border matching project color
+    - Bold description with tag pill badges below
+    - Project shown as a colored pill badge
+    - Duration in monospace, right-aligned, prominent
+    - Edit form inside an expander
 
     Args:
         entry: The TimeEntry to display.
@@ -134,25 +171,58 @@ def entry_card(entry: time_entry_model.TimeEntry, index: int) -> None:
     else:
         dur_display = "00:00:00"
 
-    proj_name = project_badge_text(entry.project_id)
-    tags_str = tag_labels(entry.tags)
     desc = entry.description or "(no description)"
 
-    # Main entry row
-    col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-    with col1:
-        st.markdown(f"**{desc}**")
-        if tags_str:
-            st.caption(f"Tags: {tags_str}")
-    with col2:
-        st.markdown(
-            project_badge(entry.project_id),
-            unsafe_allow_html=True,
-        )
-    with col3:
-        st.text(f"{start_display} - {stop_display}")
-    with col4:
-        st.text(dur_display)
+    # Resolve project for color and name
+    proj_color = "var(--tf-border-strong)"
+    proj_pill_html = ""
+    if entry.project_id is not None:
+        proj = project_model.get_by_id(entry.project_id)
+        if proj is not None:
+            proj_color = proj.color
+            proj_pill_html = (
+                f'<span class="tf-project-pill" '
+                f'style="background: {proj.color}22; color: {proj.color}; '
+                f'border: 1px solid {proj.color}44;">'
+                f'<span class="dot" style="background: {proj.color};"></span>'
+                f'{proj.name}</span>'
+            )
+
+    # Build tag pills HTML
+    tag_pills_html = ""
+    if entry.tags:
+        pills = []
+        for tid in entry.tags:
+            t = tag_model.get_by_id(tid)
+            if t:
+                pills.append(f'<span class="tf-tag-pill">{t.name}</span>')
+        if pills:
+            tag_pills_html = (
+                '<div class="tf-entry-tags">' + "".join(pills) + "</div>"
+            )
+
+    # Render the styled entry card as HTML
+    st.markdown(
+        f"""
+        <div class="tf-entry-card" style="border-left-color: {proj_color};">
+            <div style="display: flex; justify-content: space-between;
+                        align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 140px;">
+                    <div class="tf-entry-desc">{desc}</div>
+                    {proj_pill_html}
+                    {tag_pills_html}
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <div class="tf-entry-duration">{dur_display}</div>
+                    <div class="tf-entry-time-range">
+                        {start_display} &ndash; {stop_display}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Edit/Delete in expander
     with st.expander("Edit / Delete", expanded=False):
@@ -319,22 +389,31 @@ def delete_confirmation(entry_id: int) -> None:
 
 
 def running_total_display(total_seconds: int) -> None:
-    """Display the running total of today's tracked time.
+    """Display the running total of today's tracked time as a gradient bar.
+
+    Shows a styled bar with:
+    - Gradient background (teal to blue tints)
+    - Large centered duration in monospace
+    - Decimal hours
+    - Progress indicator (percentage of 8-hour day)
 
     Args:
         total_seconds: Total seconds tracked today.
     """
     formatted = format_duration(total_seconds)
     hours_decimal = total_seconds / 3600
+    # Progress as percentage of an 8-hour workday, capped at 100
+    progress_pct = min(100.0, (total_seconds / (8 * 3600)) * 100)
+
     st.markdown(
         f"""
-        <div style="text-align: center; padding: 10px; background: #1a1a2e;
-                    border-radius: 8px; margin-top: 10px;">
-            <span style="font-size: 1.2rem; color: #aaa;">Today's total: </span>
-            <span style="font-size: 1.5rem; font-weight: bold; color: #2ECC71;">
-                {formatted}
-            </span>
-            <span style="font-size: 1rem; color: #888;"> ({hours_decimal:.2f}h)</span>
+        <div class="tf-running-total">
+            <div class="label">Today's Total</div>
+            <div class="total-duration">{formatted}</div>
+            <div class="total-hours">{hours_decimal:.2f} hours</div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {progress_pct:.1f}%;"></div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
