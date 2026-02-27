@@ -15,6 +15,8 @@ Color palette:
     - Warning amber: #f0a500
 
 Timer-specific styles (Phase 2) are in ``TIMER_STYLES``.
+Dashboard-specific styles (Phase 3) are in ``DASHBOARD_STYLES``.
+Reports-specific styles (Phase 3) are in ``REPORTS_STYLES``.
 """
 
 # ---------------------------------------------------------------------------
@@ -997,6 +999,533 @@ TIMER_STYLES: str = """
     border-radius: 2px;
     background: linear-gradient(90deg, var(--tf-accent), var(--tf-primary));
     transition: width 0.4s ease;
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# Dashboard page styles (Phase 3 — dashboard visual upgrade)
+# ---------------------------------------------------------------------------
+DASHBOARD_STYLES: str = """
+<style>
+/* ===================================================================
+   DASHBOARD METRIC CARDS
+   =================================================================== */
+
+/* Base metric card styling */
+.tf-metric-card {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--tf-shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tf-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tf-shadow-md);
+}
+
+/* Gradient top border — 3px for prominence */
+.tf-metric-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+}
+
+/* Blue gradient for "Today" */
+.tf-metric-card.blue::before {
+    background: linear-gradient(90deg, #4A90D9, #5ab0f0);
+}
+
+/* Teal gradient for "This Week" */
+.tf-metric-card.teal::before {
+    background: linear-gradient(90deg, #00d4aa, #00e8bb);
+}
+
+/* Purple gradient for "This Month" */
+.tf-metric-card.purple::before {
+    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+/* Icon + label row */
+.tf-metric-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tf-text-secondary);
+    margin-bottom: 10px;
+}
+
+.tf-metric-label .icon {
+    font-size: 1.1rem;
+}
+
+/* Large metric value */
+.tf-metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--tf-text-primary);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+}
+
+/* Subtle help text below value */
+.tf-metric-help {
+    font-size: 0.8rem;
+    color: var(--tf-text-muted);
+}
+
+/* ===================================================================
+   DASHBOARD CAPACITY BAR (upgraded — thicker, gradient, inline text)
+   =================================================================== */
+.tf-capacity-container {
+    margin-top: 8px;
+    padding: 4px 0;
+}
+
+.tf-capacity-label {
+    font-size: 0.82rem;
+    color: var(--tf-text-secondary);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.tf-capacity-bar {
+    height: 12px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    position: relative;
+}
+
+.tf-capacity-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 6px;
+}
+
+.tf-capacity-text {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    line-height: 1;
+}
+
+/* ===================================================================
+   MOST TRACKED THIS WEEK CARD
+   =================================================================== */
+.tf-most-tracked {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--tf-shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tf-most-tracked:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tf-shadow-md);
+}
+
+.tf-most-tracked .project-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--tf-text-primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tf-most-tracked .project-name .accent-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.tf-most-tracked .hours-display {
+    font-size: 2.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    color: var(--tf-accent);
+    line-height: 1.1;
+}
+
+.tf-most-tracked .hours-label {
+    font-size: 0.8rem;
+    color: var(--tf-text-muted);
+    margin-top: 2px;
+}
+
+/* ===================================================================
+   RECENT ENTRIES (mini cards)
+   =================================================================== */
+.tf-recent-entry {
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: var(--tf-radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background-color 0.15s ease;
+}
+
+.tf-recent-entry:hover {
+    background-color: var(--tf-bg-hover);
+}
+
+.tf-recent-entry .project-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tf-recent-entry .entry-desc {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--tf-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tf-recent-entry .entry-time {
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    color: var(--tf-text-secondary);
+    flex-shrink: 0;
+}
+
+/* ===================================================================
+   DASHBOARD SECTION HEADERS
+   =================================================================== */
+.tf-section-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--tf-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--tf-border);
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# Reports page styles (Phase 3 — reports visual upgrade)
+# ---------------------------------------------------------------------------
+REPORTS_STYLES: str = """
+<style>
+/* ===================================================================
+   FILTER BAR — horizontal pill layout
+   =================================================================== */
+.tf-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    padding: 16px 20px;
+    background: var(--tf-bg-card);
+    border: 1px solid var(--tf-border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.tf-filter-bar .filter-group {
+    flex: 1;
+    min-width: 140px;
+}
+
+.tf-filter-bar .filter-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tf-text-muted);
+    margin-bottom: 4px;
+}
+
+/* ===================================================================
+   DATE RANGE PRESET PILLS
+   =================================================================== */
+.tf-date-presets {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.tf-date-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--tf-border-strong);
+    background: var(--tf-bg-card);
+    color: var(--tf-text-secondary);
+    transition: all 0.15s ease;
+}
+
+.tf-date-pill:hover {
+    background: var(--tf-bg-hover);
+    color: var(--tf-text-primary);
+}
+
+.tf-date-pill.active {
+    background: linear-gradient(135deg, var(--tf-primary), #3a7bc8);
+    color: white;
+    border-color: transparent;
+}
+
+/* ===================================================================
+   TAB STYLING
+   =================================================================== */
+/* Override Streamlit tab styling for a more polished look */
+div[data-testid="stTabs"] button[role="tab"] {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    color: var(--tf-text-secondary) !important;
+    border-bottom: 2px solid transparent !important;
+    padding: 10px 20px !important;
+    transition: all 0.15s ease !important;
+}
+
+div[data-testid="stTabs"] button[role="tab"]:hover {
+    color: var(--tf-text-primary) !important;
+    background: rgba(74, 144, 217, 0.06) !important;
+}
+
+div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    color: var(--tf-primary) !important;
+    border-bottom: 2px solid var(--tf-primary) !important;
+}
+
+/* ===================================================================
+   SUMMARY TABLE — alternating rows, project color dots
+   =================================================================== */
+.tf-report-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: var(--tf-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--tf-border);
+    margin-bottom: 16px;
+}
+
+.tf-report-table thead th {
+    background: var(--tf-bg-elevated);
+    color: var(--tf-text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-report-table tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.tf-report-table tbody tr:nth-child(odd) {
+    background: var(--tf-bg-card);
+}
+
+.tf-report-table tbody tr:nth-child(even) {
+    background: var(--tf-bg-elevated);
+}
+
+.tf-report-table tbody tr:hover {
+    background: var(--tf-bg-hover);
+}
+
+.tf-report-table tbody td {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    color: var(--tf-text-primary);
+    border-bottom: 1px solid var(--tf-border);
+}
+
+.tf-report-table tbody td .project-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tf-report-table tbody td .project-indicator .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.tf-report-table .td-number {
+    font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ===================================================================
+   DETAILED TABLE — day headers
+   =================================================================== */
+.tf-day-header {
+    background: linear-gradient(90deg,
+        rgba(74, 144, 217, 0.10),
+        rgba(0, 212, 170, 0.05));
+    border: 1px solid var(--tf-border);
+    border-radius: var(--tf-radius-sm);
+    padding: 10px 16px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tf-day-header .day-date {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--tf-text-primary);
+}
+
+.tf-day-header .day-name {
+    font-size: 0.85rem;
+    color: var(--tf-text-secondary);
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.tf-day-header .day-total {
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+    color: var(--tf-accent);
+}
+
+/* ===================================================================
+   GRAND TOTAL BAR
+   =================================================================== */
+.tf-grand-total {
+    background: linear-gradient(135deg,
+        rgba(0, 212, 170, 0.08),
+        rgba(74, 144, 217, 0.08));
+    border: 1px solid rgba(0, 212, 170, 0.18);
+    border-radius: var(--tf-radius-md);
+    padding: 12px 20px;
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.tf-grand-total .total-label {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--tf-text-primary);
+}
+
+.tf-grand-total .total-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.tf-grand-total .stat-item {
+    text-align: center;
+}
+
+.tf-grand-total .stat-value {
+    font-weight: 700;
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--tf-accent);
+}
+
+.tf-grand-total .stat-label {
+    font-size: 0.72rem;
+    color: var(--tf-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ===================================================================
+   EXPORT BUTTONS — icon-style
+   =================================================================== */
+.tf-export-bar {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.tf-export-btn .stDownloadButton > button {
+    border-radius: var(--tf-radius-sm) !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+    padding: 8px 20px !important;
+    border: 1px solid var(--tf-border-strong) !important;
+    background: var(--tf-bg-elevated) !important;
+    color: var(--tf-text-secondary) !important;
+    transition: all 0.15s ease !important;
+}
+
+.tf-export-btn .stDownloadButton > button:hover {
+    background: var(--tf-bg-hover) !important;
+    color: var(--tf-text-primary) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--tf-shadow-sm) !important;
+}
+
+/* ===================================================================
+   DATE RANGE DISPLAY
+   =================================================================== */
+.tf-date-range-info {
+    font-size: 0.85rem;
+    color: var(--tf-text-secondary);
+    padding: 8px 14px;
+    background: var(--tf-bg-elevated);
+    border-radius: var(--tf-radius-sm);
+    border: 1px solid var(--tf-border);
+    display: inline-block;
+    margin-bottom: 12px;
 }
 </style>
 """

@@ -470,7 +470,12 @@ def show_toast(message: str, icon: str = "✅") -> None:
 
 
 def capacity_bar(percent: float) -> None:
-    """Render a capacity percentage bar.
+    """Render a capacity percentage bar with gradient fill and inline text.
+
+    Features:
+    - 12px thick bar (upgraded from 8px)
+    - Gradient fill (color transitions based on percentage)
+    - Inline percentage text displayed inside the bar when >30%
 
     Args:
         percent: Capacity percentage (0-100+).
@@ -478,22 +483,30 @@ def capacity_bar(percent: float) -> None:
     # Clamp display width to 100%
     bar_width = min(percent, 100.0)
 
-    # Color based on capacity
+    # Gradient based on capacity level
     if percent >= 100:
-        color = "#2ECC71"  # Green - full capacity
+        gradient = "linear-gradient(90deg, #2ecc71, #27ae60)"
     elif percent >= 75:
-        color = "#4A90D9"  # Blue
+        gradient = "linear-gradient(90deg, #4A90D9, #00d4aa)"
     elif percent >= 50:
-        color = "#F39C12"  # Orange
+        gradient = "linear-gradient(90deg, #F39C12, #f0c040)"
     else:
-        color = "#E74C3C"  # Red - low capacity
+        gradient = "linear-gradient(90deg, #E74C3C, #e67e22)"
+
+    # Show percentage text inside bar only when wide enough (>30%)
+    pct_text = (
+        f'<span class="tf-capacity-text">{percent:.0f}%</span>'
+        if percent > 30 else ""
+    )
 
     st.markdown(
         f"""
-        <div class="capacity-bar-container">
-            <div class="capacity-bar">
-                <div class="capacity-bar-fill"
-                     style="width: {bar_width}%; background-color: {color};"></div>
+        <div class="tf-capacity-container">
+            <div class="tf-capacity-bar">
+                <div class="tf-capacity-fill"
+                     style="width: {bar_width}%; background: {gradient};">
+                    {pct_text}
+                </div>
             </div>
         </div>
         """,
