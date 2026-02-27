@@ -14,6 +14,7 @@ from models import tag as tag_model
 from models import time_entry as time_entry_model
 from ui.components import (
     delete_confirmation,
+    empty_state,
     entry_card,
     running_total_display,
     timer_display,
@@ -204,7 +205,7 @@ def _render_manual_entry() -> None:
                     project_id=proj_id,
                     tag_ids=tag_id_list if tag_id_list else None,
                 )
-                st.success("Manual entry added.")
+                st.toast("Manual entry added.", icon="✅")
                 st.rerun()
 
 
@@ -220,7 +221,11 @@ def _render_today_entries() -> None:
     entries = get_today_entries()
 
     if not entries:
-        st.info("No entries for today. Start tracking your time!")
+        empty_state(
+            "No entries for today.",
+            icon="⏱️",
+            hint="Start tracking your time or add a manual entry above!",
+        )
         return
 
     for i, entry in enumerate(entries):

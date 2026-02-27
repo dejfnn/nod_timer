@@ -12,8 +12,10 @@ from pages.clients import render as render_clients
 from pages.dashboard import render as render_dashboard
 from pages.projects import render as render_projects
 from pages.reports import render as render_reports
+from pages.settings import render as render_settings
 from pages.tags import render as render_tags
 from pages.timer import render as render_timer
+from ui.styles import GLOBAL_STYLES
 
 
 def main() -> None:
@@ -25,6 +27,9 @@ def main() -> None:
         layout="wide",
     )
 
+    # Apply global CSS styles
+    st.markdown(GLOBAL_STYLES, unsafe_allow_html=True)
+
     # Initialize database
     init_db()
 
@@ -34,7 +39,7 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigation",
-        options=["Dashboard", "Timer", "Projects", "Clients", "Tags", "Reports"],
+        options=["Dashboard", "Timer", "Projects", "Clients", "Tags", "Reports", "Settings"],
         index=0,
         key="nav_radio",
     )
@@ -52,6 +57,8 @@ def main() -> None:
         render_tags()
     elif page == "Reports":
         render_reports()
+    elif page == "Settings":
+        render_settings()
 
 
 if __name__ == "__main__":

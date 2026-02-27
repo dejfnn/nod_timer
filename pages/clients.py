@@ -7,6 +7,7 @@ the clients management UI.
 import streamlit as st
 
 from models import client as client_model
+from ui.components import empty_state
 
 
 def render() -> None:
@@ -31,7 +32,7 @@ def _render_new_client_form() -> None:
             else:
                 try:
                     client_model.create(name=name.strip())
-                    st.success(f"Client '{name.strip()}' created.")
+                    st.toast(f"Client '{name.strip()}' created.", icon="✅")
                     st.rerun()
                 except Exception:
                     st.error(f"Client '{name.strip()}' already exists.")
@@ -48,7 +49,11 @@ def _render_client_list() -> None:
     )
 
     if not clients:
-        st.info("No clients yet. Create one above!")
+        empty_state(
+            "No clients yet.",
+            icon="👥",
+            hint="Create your first client using the form above!",
+        )
         return
 
     for c in clients:
@@ -111,7 +116,7 @@ def _render_edit_client_form(c: client_model.Client) -> None:
         else:
             try:
                 client_model.update(c.id, name=new_name.strip())
-                st.success(f"Client '{new_name.strip()}' updated.")
+                st.toast(f"Client '{new_name.strip()}' updated.", icon="✅")
                 st.rerun()
             except Exception:
                 st.error(f"Client name '{new_name.strip()}' already exists.")

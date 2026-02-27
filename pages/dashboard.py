@@ -1,13 +1,15 @@
 """Dashboard page for TimeFlow.
 
-Shows overview metrics, charts, and recent activity.
+Shows overview metrics, charts, recent activity, and daily capacity.
 """
 
 import streamlit as st
 
 from db.connection import get_connection
+from models import settings as settings_model
 from services import dashboard as dashboard_svc
 from ui.charts import daily_bar_chart, project_donut_chart
+from ui.components import capacity_bar, empty_state
 from ui.state import format_duration
 
 
@@ -43,6 +45,18 @@ def render() -> None:
             value=format_duration(month_total),
             help=f"{month_total / 3600:.2f} hours",
         )
+
+    # ------------------------------------------------------------------
+    # Capacity bar: today's tracked time vs working hours
+    # ------------------------------------------------------------------
+    working_hours = settings_model.get_working_hours(conn=conn)
+    capacity_pct = settings_model.calculate_capacity_percent(today_total, working_hours)
+
+    st.caption(
+        f"Today's capacity: **{capacity_pct:.0f}%** "
+        f"({today_total / 3600:.1f}h / {working_hours:.1f}h)"
+    )
+    capacity_bar(capacity_pct)
 
     st.divider()
 
@@ -85,7 +99,11 @@ def render() -> None:
                 unsafe_allow_html=True,
             )
         else:
-            st.info("No tracked time this week.")
+            empty_state(
+                "No tracked time this week.",
+                icon="📊",
+                hint="Start the timer to see your most tracked project here.",
+            )
 
     with bottom_col2:
         st.subheader("Recent Entries")
@@ -107,4 +125,8 @@ def render() -> None:
                 with c3:
                     st.text(duration_str)
         else:
-            st.info("No entries yet. Start tracking time!")
+            empty_state(
+                "No entries yet.",
+                icon="⏱️",
+                hint="Start tracking time to see your recent entries here!",
+            )

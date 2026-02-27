@@ -1,7 +1,7 @@
 """Reusable UI components for TimeFlow.
 
-Provides timer_display(), entry_card(), project_badge(), and other
-shared Streamlit components.
+Provides timer_display(), entry_card(), project_badge(), empty_state(),
+show_toast(), and other shared Streamlit components.
 """
 
 from datetime import datetime
@@ -274,7 +274,7 @@ def _render_edit_form(entry: time_entry_model.TimeEntry, index: int) -> None:
                 return
 
         time_entry_model.update(entry.id, **update_kwargs)
-        st.success("Entry updated.")
+        st.toast("Entry updated.", icon="✅")
         st.rerun()
 
     if delete_clicked:
@@ -294,7 +294,7 @@ def delete_confirmation(entry_id: int) -> None:
         if st.button("Yes, delete", key=f"confirm_del_{entry_id}"):
             time_entry_model.delete(entry_id)
             st.session_state.confirm_delete_id = None
-            st.success("Entry deleted.")
+            st.toast("Entry deleted.", icon="🗑️")
             st.rerun()
     with col_no:
         if st.button("Cancel", key=f"cancel_del_{entry_id}"):
@@ -341,3 +341,66 @@ def _format_time_short(time_str: str | None) -> str:
         return dt.strftime("%H:%M")
     except ValueError:
         return time_str
+
+
+def empty_state(message: str, icon: str = "📭", hint: str = "") -> None:
+    """Display an empty state placeholder with an icon and message.
+
+    Args:
+        message: Main message to display.
+        icon: Emoji icon to show above the message.
+        hint: Optional smaller hint text below the message.
+    """
+    hint_html = f'<div class="hint">{hint}</div>' if hint else ""
+    st.markdown(
+        f"""
+        <div class="empty-state">
+            <div class="icon">{icon}</div>
+            <div class="message">{message}</div>
+            {hint_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def show_toast(message: str, icon: str = "✅") -> None:
+    """Show a Streamlit toast notification.
+
+    Args:
+        message: Toast message text.
+        icon: Emoji icon for the toast.
+    """
+    st.toast(message, icon=icon)
+
+
+def capacity_bar(percent: float) -> None:
+    """Render a capacity percentage bar.
+
+    Args:
+        percent: Capacity percentage (0-100+).
+    """
+    # Clamp display width to 100%
+    bar_width = min(percent, 100.0)
+
+    # Color based on capacity
+    if percent >= 100:
+        color = "#2ECC71"  # Green - full capacity
+    elif percent >= 75:
+        color = "#4A90D9"  # Blue
+    elif percent >= 50:
+        color = "#F39C12"  # Orange
+    else:
+        color = "#E74C3C"  # Red - low capacity
+
+    st.markdown(
+        f"""
+        <div class="capacity-bar-container">
+            <div class="capacity-bar">
+                <div class="capacity-bar-fill"
+                     style="width: {bar_width}%; background-color: {color};"></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

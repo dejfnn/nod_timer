@@ -9,6 +9,7 @@ import streamlit as st
 from config import DEFAULT_PROJECT_COLOR, PROJECT_COLORS
 from models import client as client_model
 from models import project as project_model
+from ui.components import empty_state
 from ui.state import format_duration
 
 
@@ -119,7 +120,7 @@ def _render_new_project_form() -> None:
                     billable=billable,
                     hourly_rate=hourly_rate,
                 )
-                st.success(f"Project '{name.strip()}' created.")
+                st.toast(f"Project '{name.strip()}' created.", icon="✅")
                 st.rerun()
 
 
@@ -130,7 +131,11 @@ def _render_project_list() -> None:
     projects = project_model.get_all(include_archived=True) if show_archived else project_model.get_all()
 
     if not projects:
-        st.info("No projects yet. Create one above!")
+        empty_state(
+            "No projects yet.",
+            icon="📁",
+            hint="Create your first project using the form above!",
+        )
         return
 
     for proj in projects:
@@ -276,5 +281,5 @@ def _render_edit_project_form(proj: project_model.Project) -> None:
                 billable=new_billable,
                 hourly_rate=new_rate,
             )
-            st.success(f"Project '{new_name.strip()}' updated.")
+            st.toast(f"Project '{new_name.strip()}' updated.", icon="✅")
             st.rerun()

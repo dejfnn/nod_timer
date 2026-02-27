@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Application
 APP_NAME: str = "TimeFlow"
-APP_VERSION: str = "0.1.0"
+APP_VERSION: str = "0.5.0"
 
 # Database
 DB_DIR: Path = Path(os.environ.get("TIMEFLOW_DB_DIR", Path(__file__).parent))
