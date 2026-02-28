@@ -6,6 +6,8 @@ import {
   stopEntry,
   updateTimeEntry,
   addTags,
+  removeTags,
+  getTagsForEntry,
 } from "@/models/timeEntry";
 import { nowISO, diffSeconds } from "@/utils/time";
 
@@ -133,12 +135,16 @@ export const useTimerStore = create<TimerState & TimerActions>((set, get) => ({
       // Calculate elapsed time from the start time
       const elapsed = diffSeconds(active.startTime, nowISO());
 
+      // Load tags from the junction table
+      const entryTags = await getTagsForEntry(database, active.id);
+      const tagIds = entryTags.map((t) => t.id);
+
       set({
         isRunning: true,
         activeEntryId: active.id,
         description: active.description,
         projectId: active.projectId,
-        tagIds: [], // Tags will be loaded separately if needed
+        tagIds,
         elapsedSeconds: elapsed,
       });
     } else {
@@ -164,6 +170,24 @@ export const useTimerStore = create<TimerState & TimerActions>((set, get) => ({
     // Update DB entry if there are field changes
     if (Object.keys(updateData).length > 0) {
       await updateTimeEntry(database, activeEntryId, updateData as any);
+    }
+
+    // Update tags in the junction table if tagIds changed
+    if (fields.tagIds !== undefined) {
+      const currentTagIds = get().tagIds;
+      const newTagIds = fields.tagIds;
+
+      // Remove tags that are no longer selected
+      const tagsToRemove = currentTagIds.filter((id) => !newTagIds.includes(id));
+      if (tagsToRemove.length > 0) {
+        await removeTags(database, activeEntryId, tagsToRemove);
+      }
+
+      // Add newly selected tags
+      const tagsToAdd = newTagIds.filter((id) => !currentTagIds.includes(id));
+      if (tagsToAdd.length > 0) {
+        await addTags(database, activeEntryId, tagsToAdd);
+      }
     }
 
     // Update local state

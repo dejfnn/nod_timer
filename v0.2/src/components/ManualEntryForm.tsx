@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, Pressable, Alert, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card, Input, Button, Badge } from "@/components/ui";
@@ -7,8 +7,9 @@ import { TagPicker } from "./TagPicker";
 import { db } from "@/db/client";
 import { createTimeEntry, addTags } from "@/models/timeEntry";
 import { getProjectById } from "@/models/project";
+import { getAllTags } from "@/models/tag";
 import { diffSeconds, nowISO } from "@/utils/time";
-import type { Project } from "@/types";
+import type { Project, Tag } from "@/types";
 
 /**
  * Collapsible manual time entry form.
@@ -29,10 +30,16 @@ export const ManualEntryForm = ({ onEntryCreated }: ManualEntryFormProps) => {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [date, setDate] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Load all tags from DB so we can display names in badges
+  useEffect(() => {
+    getAllTags(db).then(setTags).catch(console.error);
+  }, []);
 
   const resetForm = () => {
     setDescription("");
@@ -183,9 +190,12 @@ export const ManualEntryForm = ({ onEntryCreated }: ManualEntryFormProps) => {
           {/* Tag badges */}
           {tagIds.length > 0 && (
             <View className="flex-row flex-wrap gap-1.5 mb-3">
-              {tagIds.map((id) => (
-                <Badge key={id} label={`Tag #${id}`} variant="default" size="sm" />
-              ))}
+              {tagIds.map((id) => {
+                const tag = tags.find((t) => t.id === id);
+                return (
+                  <Badge key={id} label={tag?.name ?? `Tag #${id}`} variant="default" size="sm" />
+                );
+              })}
             </View>
           )}
 

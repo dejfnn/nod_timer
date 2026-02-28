@@ -20,6 +20,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { db } from "@/db/client";
 import { getAllTimeEntries, deleteTimeEntry, getTagsForEntry } from "@/models/timeEntry";
 import { getProjectById } from "@/models/project";
+import { getAllTags } from "@/models/tag";
 import { getTodayRange, formatDuration } from "@/utils/time";
 import type { TimeEntry, Project, Tag } from "@/types";
 
@@ -38,12 +39,18 @@ const TimerScreen = () => {
   const [projectId, setProjectId] = useState<number | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [tagIds, setTagIds] = useState<number[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
 
   // Today's entries
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
   const [todayTotal, setTodayTotal] = useState(0);
+
+  // Load all tags from DB so we can display names in badges
+  useEffect(() => {
+    getAllTags(db).then(setTags).catch(console.error);
+  }, []);
 
   // Sync local description from store when resuming
   useEffect(() => {
@@ -112,7 +119,7 @@ const TimerScreen = () => {
     setProject(null);
     setTagIds([]);
     // Reload entries after stopping
-    setTimeout(loadEntries, 100);
+    await loadEntries();
   };
 
   const handleDescriptionChange = (text: string) => {
@@ -258,9 +265,12 @@ const TimerScreen = () => {
             {/* Tag badges (when selected) */}
             {tagIds.length > 0 && (
               <View className="flex-row flex-wrap gap-1.5 px-screen-x pb-3">
-                {tagIds.map((id) => (
-                  <Badge key={id} label={`Tag #${id}`} variant="active" size="sm" />
-                ))}
+                {tagIds.map((id) => {
+                  const tag = tags.find((t) => t.id === id);
+                  return (
+                    <Badge key={id} label={tag?.name ?? `Tag #${id}`} variant="active" size="sm" />
+                  );
+                })}
               </View>
             )}
 
