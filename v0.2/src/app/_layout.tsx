@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Slot } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -43,7 +43,31 @@ const RootLayout = () => {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="clients"
+          options={{
+            headerShown: true,
+            title: "Clients",
+            headerStyle: { backgroundColor: "#0a0e1a" },
+            headerTintColor: "#e8eaed",
+            headerShadowVisible: false,
+            presentation: "card",
+          }}
+        />
+        <Stack.Screen
+          name="tags"
+          options={{
+            headerShown: true,
+            title: "Tags",
+            headerStyle: { backgroundColor: "#0a0e1a" },
+            headerTintColor: "#e8eaed",
+            headerShadowVisible: false,
+            presentation: "card",
+          }}
+        />
+      </Stack>
     </SafeAreaProvider>
   );
 };
