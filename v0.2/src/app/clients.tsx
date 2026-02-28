@@ -23,7 +23,6 @@ import {
   getAllClients,
   updateClient,
   deleteClient,
-  getProjectCount,
 } from "@/models/client";
 import { getAllProjects } from "@/models/project";
 import type { Client, Project } from "@/types";

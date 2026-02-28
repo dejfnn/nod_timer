@@ -111,7 +111,7 @@ export function diffSeconds(start: string, end: string): number {
 /**
  * Convert a Date to a local ISO string "YYYY-MM-DDTHH:MM:SS" (no timezone offset).
  */
-function toLocalISO(date: Date): string {
+export function toLocalISO(date: Date): string {
   const y = date.getFullYear();
   const mo = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
