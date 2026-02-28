@@ -7,6 +7,14 @@ export async function createTag(
   db: DrizzleDB,
   data: Pick<NewTag, "name">
 ): Promise<Tag> {
+  // Check for duplicate name before inserting
+  const existing = await db
+    .select()
+    .from(tags)
+    .where(eq(tags.name, data.name));
+  if (existing.length > 0) {
+    throw new Error(`Tag with name "${data.name}" already exists`);
+  }
   const rows = await db.insert(tags).values({ name: data.name }).returning();
   return rows[0];
 }
