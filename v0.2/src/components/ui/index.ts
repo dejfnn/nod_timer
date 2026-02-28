@@ -7,3 +7,5 @@ export { TimerDisplay, InlineTimer } from "./TimerDisplay";
 export { EmptyState } from "./EmptyState";
 export { SectionHeader } from "./SectionHeader";
 export { ProgressBar } from "./ProgressBar";
+export { EntryCard } from "./EntryCard";
+export { GradientButton } from "./GradientButton";
