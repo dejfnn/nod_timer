@@ -20,6 +20,7 @@ import {
   deleteTag,
   getUsageCount,
 } from "@/models/tag";
+import { showToast } from "@/stores/toastStore";
 import type { Tag } from "@/types";
 
 interface TagWithCount extends Tag {
@@ -59,6 +60,7 @@ const TagsScreen = () => {
       await createTag(db, { name: newName.trim() });
       setNewName("");
       setRefreshKey((k) => k + 1);
+      showToast("Tag created", "success");
     } catch (error) {
       Alert.alert("Error", "A tag with that name may already exist.");
     }
@@ -72,6 +74,7 @@ const TagsScreen = () => {
       setEditingId(null);
       setEditName("");
       setRefreshKey((k) => k + 1);
+      showToast("Tag updated", "success");
     } catch (error) {
       Alert.alert("Error", "Failed to update tag.");
     }

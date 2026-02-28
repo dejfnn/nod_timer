@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { db } from "@/db/client";
-import { Card, SectionHeader, EmptyState } from "@/components/ui";
+import { Card, SectionHeader, EmptyState, SkeletonMetricCard, SkeletonCard } from "@/components/ui";
 import { MetricCard } from "@/components/MetricCard";
 import { CapacityBar } from "@/components/CapacityBar";
 import { BarChart } from "@/components/charts/BarChart";
@@ -99,8 +99,25 @@ const DashboardScreen = () => {
   if (!data) {
     return (
       <SafeAreaView className="flex-1 bg-tf-deep" edges={["top"]}>
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-txt-secondary">Loading dashboard...</Text>
+        <View className="px-screen-x pt-4 pb-2">
+          <Text className="text-txt-primary text-2xl font-bold">Dashboard</Text>
+        </View>
+        {/* Skeleton metric cards */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="pl-screen-x mb-section-gap"
+          contentContainerStyle={{ paddingRight: 20 }}
+        >
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+          <SkeletonMetricCard />
+        </ScrollView>
+        {/* Skeleton content cards */}
+        <View className="px-screen-x">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </View>
       </SafeAreaView>
     );

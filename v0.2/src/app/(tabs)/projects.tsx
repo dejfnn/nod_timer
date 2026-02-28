@@ -32,6 +32,7 @@ import {
 } from "@/models/project";
 import { getAllClients } from "@/models/client";
 import { DEFAULT_PROJECT_COLOR } from "@/constants/config";
+import { showToast } from "@/stores/toastStore";
 import type { Project, Client } from "@/types";
 
 interface ProjectWithMeta extends Project {
@@ -110,8 +111,10 @@ const ProjectsScreen = () => {
       resetForm();
       setFormOpen(false);
       setRefreshKey((k) => k + 1);
+      showToast("Project created", "success");
     } catch (error) {
       console.error("Failed to create project:", error);
+      showToast("Failed to create project", "error");
     }
   };
 
@@ -128,8 +131,10 @@ const ProjectsScreen = () => {
       });
       setEditingId(null);
       setRefreshKey((k) => k + 1);
+      showToast("Project updated", "success");
     } catch (error) {
       console.error("Failed to update project:", error);
+      showToast("Failed to update project", "error");
     }
   };
 

@@ -10,6 +10,10 @@ import {
   getTagsForEntry,
 } from "@/models/timeEntry";
 import { nowISO, diffSeconds } from "@/utils/time";
+import {
+  scheduleTimerNotifications,
+  cancelTimerNotifications,
+} from "@/services/notifications";
 
 /** Timer store state shape. */
 export interface TimerState {
@@ -72,6 +76,22 @@ function getDB(): DrizzleDB {
   return db;
 }
 
+/** Trigger haptic feedback. Fails silently if not available. */
+function triggerHaptic(style: "light" | "medium" | "heavy" = "medium"): void {
+  try {
+    const Haptics = require("expo-haptics");
+    Haptics.impactAsync(
+      style === "light"
+        ? Haptics.ImpactFeedbackStyle.Light
+        : style === "heavy"
+          ? Haptics.ImpactFeedbackStyle.Heavy
+          : Haptics.ImpactFeedbackStyle.Medium,
+    );
+  } catch {
+    // Haptics not available in this environment
+  }
+}
+
 export const useTimerStore = create<TimerState & TimerActions>((set, get) => ({
   ...initialState,
 
@@ -102,6 +122,12 @@ export const useTimerStore = create<TimerState & TimerActions>((set, get) => ({
       tagIds,
       elapsedSeconds: 0,
     });
+
+    // Haptic feedback on start
+    triggerHaptic("medium");
+
+    // Schedule long-running timer notifications
+    scheduleTimerNotifications().catch(() => {});
   },
 
   stopTimer: async () => {
@@ -119,6 +145,12 @@ export const useTimerStore = create<TimerState & TimerActions>((set, get) => ({
       tagIds: [],
       elapsedSeconds: 0,
     });
+
+    // Haptic feedback on stop
+    triggerHaptic("heavy");
+
+    // Cancel scheduled notifications
+    cancelTimerNotifications().catch(() => {});
   },
 
   tick: () => {

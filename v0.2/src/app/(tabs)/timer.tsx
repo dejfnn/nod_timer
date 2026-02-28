@@ -22,6 +22,7 @@ import { getAllTimeEntries, deleteTimeEntry, getTagsForEntry } from "@/models/ti
 import { getProjectById } from "@/models/project";
 import { getAllTags } from "@/models/tag";
 import { getTodayRange, formatDuration } from "@/utils/time";
+import { showToast } from "@/stores/toastStore";
 import type { TimeEntry, Project, Tag } from "@/types";
 
 /** Enriched entry with project and tags for display. */
@@ -120,6 +121,7 @@ const TimerScreen = () => {
     setTagIds([]);
     // Reload entries after stopping
     await loadEntries();
+    showToast("Timer stopped", "success");
   };
 
   const handleDescriptionChange = (text: string) => {
@@ -150,8 +152,14 @@ const TimerScreen = () => {
   };
 
   const handleDeleteEntry = async (id: number) => {
-    await deleteTimeEntry(db, id);
-    loadEntries();
+    try {
+      await deleteTimeEntry(db, id);
+      loadEntries();
+      showToast("Entry deleted", "info");
+    } catch (error) {
+      console.error("Failed to delete entry:", error);
+      showToast("Failed to delete entry", "error");
+    }
   };
 
   // Running total includes the current running timer
