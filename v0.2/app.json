@@ -8,6 +8,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#0a0e1a",
       "resizeMode": "contain"
     },
@@ -20,9 +21,14 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0e1a"
       },
-      "package": "com.timeflow.app"
+      "package": "com.timeflow.app",
+      "permissions": [
+        "NOTIFICATIONS",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -31,7 +37,20 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0a0e1a"
+        }
+      ],
+      "expo-haptics",
+      "expo-document-picker"
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#00d4aa"
+    }
   }
 }

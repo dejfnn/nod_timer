@@ -25,6 +25,7 @@ import {
   deleteClient,
 } from "@/models/client";
 import { getAllProjects } from "@/models/project";
+import { showToast } from "@/stores/toastStore";
 import type { Client, Project } from "@/types";
 
 interface ClientWithProjects extends Client {
@@ -68,6 +69,7 @@ const ClientsScreen = () => {
       await createClient(db, { name: newName.trim() });
       setNewName("");
       setRefreshKey((k) => k + 1);
+      showToast("Client created", "success");
     } catch (error) {
       Alert.alert("Error", "A client with that name may already exist.");
     }
@@ -81,6 +83,7 @@ const ClientsScreen = () => {
       setEditingId(null);
       setEditName("");
       setRefreshKey((k) => k + 1);
+      showToast("Client updated", "success");
     } catch (error) {
       Alert.alert("Error", "Failed to update client.");
     }

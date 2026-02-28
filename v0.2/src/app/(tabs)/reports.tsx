@@ -45,6 +45,7 @@ import {
   formatDate,
   toLocalISO,
 } from "@/utils/time";
+import { showToast } from "@/stores/toastStore";
 import type {
   DatePreset,
   ReportFilters as FilterType,
@@ -278,8 +279,9 @@ const ReportsScreen = () => {
       }
 
       await shareCSV(csv, filename);
+      showToast("CSV exported", "success");
     } catch (e) {
-      Alert.alert("Export Error", "Failed to export CSV file.");
+      showToast("Failed to export CSV", "error");
     }
   }, [tab, groupBy, summaryData, detailedData, weeklyData, range]);
 

@@ -4,6 +4,8 @@ import { StatusBar } from "expo-status-bar";
 import { View, Text, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { initDatabase } from "@/db/client";
+import { requestNotificationPermissions } from "@/services/notifications";
+import { ToastContainer } from "@/components/ui";
 import "../../global.css";
 
 const RootLayout = () => {
@@ -15,6 +17,9 @@ const RootLayout = () => {
       try {
         await initDatabase();
         setDbReady(true);
+
+        // Request notification permissions (non-blocking)
+        requestNotificationPermissions().catch(() => {});
       } catch (e) {
         console.error("Failed to initialize database:", e);
         setError(e instanceof Error ? e.message : "Unknown error");
@@ -68,6 +73,7 @@ const RootLayout = () => {
           }}
         />
       </Stack>
+      <ToastContainer />
     </SafeAreaProvider>
   );
 };
