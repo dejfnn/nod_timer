@@ -151,20 +151,21 @@ export async function getEntriesInRange(
       .orderBy(asc(timeEntries.startTime));
   }
 
-  // Post-filter by tags if needed
+  // Post-filter by tags if needed (single batch query instead of N+1)
   if (filters?.tagIds && filters.tagIds.length > 0) {
-    const tagSet = new Set(filters.tagIds);
-    const filtered = [];
-    for (const row of rows) {
-      const entryTags = await db
-        .select({ tagId: timeEntryTags.tagId })
-        .from(timeEntryTags)
-        .where(eq(timeEntryTags.timeEntryId, row.id));
-      if (entryTags.some((t) => tagSet.has(t.tagId))) {
-        filtered.push(row);
-      }
-    }
-    return filtered;
+    const entryIds = rows.map((r) => r.id);
+    if (entryIds.length === 0) return [];
+    const matchingRows = await db
+      .selectDistinct({ timeEntryId: timeEntryTags.timeEntryId })
+      .from(timeEntryTags)
+      .where(
+        and(
+          inArray(timeEntryTags.timeEntryId, entryIds),
+          inArray(timeEntryTags.tagId, filters.tagIds),
+        ),
+      );
+    const matchingIds = new Set(matchingRows.map((r) => r.timeEntryId));
+    return rows.filter((r) => matchingIds.has(r.id));
   }
 
   return rows;

@@ -210,11 +210,12 @@ const ReportsScreen = () => {
   }, [detailedData]);
 
   const weeklyTotals = useMemo(() => {
-    const entries = weeklyData.length;
+    // Weekly pivot data has project rows, not individual time entries,
+    // so we cannot derive entry count here — set to 0.
     const seconds = Math.round(
       weeklyData.reduce((s, r) => s + r.total, 0) * 3600,
     );
-    return { entries, seconds, billable: 0 };
+    return { entries: 0, seconds, billable: 0 };
   }, [weeklyData]);
 
   // Detailed entries grouped by day for SectionList

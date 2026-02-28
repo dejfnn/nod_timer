@@ -33,12 +33,14 @@ export const GrandTotalBar = ({
       </View>
 
       <View className="flex-row items-center" style={{ gap: 16 }}>
-        <View className="items-center">
-          <Text className="text-xs text-txt-muted">Entries</Text>
-          <Text className="text-sm font-mono font-semibold text-txt-primary">
-            {totalEntries}
-          </Text>
-        </View>
+        {totalEntries > 0 && (
+          <View className="items-center">
+            <Text className="text-xs text-txt-muted">Entries</Text>
+            <Text className="text-sm font-mono font-semibold text-txt-primary">
+              {totalEntries}
+            </Text>
+          </View>
+        )}
 
         <View className="items-center">
           <Text className="text-xs text-txt-muted">Duration</Text>

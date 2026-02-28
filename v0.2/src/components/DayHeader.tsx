@@ -1,5 +1,4 @@
 import { View, Text } from "react-native";
-import { formatDuration } from "@/utils/time";
 
 interface DayHeaderProps {
   /** Date string "YYYY-MM-DD" */
