@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, isNotNull } from "drizzle-orm";
 import {
   projects,
   timeEntries,
@@ -87,6 +87,11 @@ export async function getTotalTrackedTime(
       total: sql<number>`COALESCE(SUM(${timeEntries.durationSeconds}), 0)`,
     })
     .from(timeEntries)
-    .where(eq(timeEntries.projectId, projectId));
+    .where(
+      and(
+        eq(timeEntries.projectId, projectId),
+        isNotNull(timeEntries.stopTime),
+      )
+    );
   return rows[0]?.total ?? 0;
 }
