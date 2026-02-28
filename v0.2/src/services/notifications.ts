@@ -64,7 +64,7 @@ export async function scheduleTimerNotifications(): Promise<void> {
         sound: true,
       },
       trigger: {
-        type: "timeInterval",
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 2 * 60 * 60, // 2 hours
         repeats: false,
       },
@@ -79,7 +79,7 @@ export async function scheduleTimerNotifications(): Promise<void> {
         sound: true,
       },
       trigger: {
-        type: "timeInterval",
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 4 * 60 * 60, // 4 hours
         repeats: false,
       },

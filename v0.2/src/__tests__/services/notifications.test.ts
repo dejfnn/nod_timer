@@ -19,6 +19,7 @@ jest.mock("expo-notifications", () => ({
   setNotificationHandler: mockSetNotificationHandler,
   scheduleNotificationAsync: mockScheduleNotificationAsync,
   cancelScheduledNotificationAsync: mockCancelScheduledNotificationAsync,
+  SchedulableTriggerInputTypes: { TIME_INTERVAL: "timeInterval" },
 }));
 
 import {

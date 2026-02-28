@@ -1,5 +1,15 @@
 import { createTestDb } from "../helpers/testDb";
 
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(),
+  ImpactFeedbackStyle: { Light: "light", Medium: "medium", Heavy: "heavy" },
+}));
+jest.mock("expo-notifications", () => ({
+  scheduleNotificationAsync: jest.fn().mockResolvedValue("mock-id"),
+  cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  SchedulableTriggerInputTypes: { TIME_INTERVAL: "timeInterval" },
+}));
+
 // Mock the DB client module to avoid expo-sqlite import
 jest.mock("@/db/client", () => {
   return {
