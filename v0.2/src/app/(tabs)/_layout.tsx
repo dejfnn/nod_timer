@@ -1,27 +1,22 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@/constants/colors";
+import { getTabScreenOptions } from "@/components/ui/TabBarTheme";
+
+const TAB_ICON_SIZE = 22;
 
 const TabLayout = () => {
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.tf.card,
-          borderTopColor: colors.tf.border,
-          borderTopWidth: 1,
-        },
-        tabBarActiveTintColor: colors.accent.DEFAULT,
-        tabBarInactiveTintColor: colors.text.muted,
-      }}
-    >
+    <Tabs screenOptions={{ ...getTabScreenOptions(), headerShown: false }}>
       <Tabs.Screen
         name="index"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "grid" : "grid-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
         }}
       />
@@ -29,8 +24,12 @@ const TabLayout = () => {
         name="timer"
         options={{
           title: "Timer",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "time" : "time-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
         }}
       />
@@ -38,8 +37,12 @@ const TabLayout = () => {
         name="projects"
         options={{
           title: "Projects",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "folder" : "folder-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
         }}
       />
@@ -47,8 +50,12 @@ const TabLayout = () => {
         name="reports"
         options={{
           title: "Reports",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "bar-chart" : "bar-chart-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
         }}
       />
@@ -56,8 +63,12 @@ const TabLayout = () => {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "settings" : "settings-outline"}
+              size={TAB_ICON_SIZE}
+              color={color}
+            />
           ),
         }}
       />
