@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+
+  --color-ink-950: #0a0a0d;
+  --color-ink-900: #0f0f13;
+  --color-ink-850: #14141a;
+  --color-ink-800: #1a1a22;
+  --color-ink-700: #242430;
+  --color-ink-600: #303040;
+  --color-mist-500: #6f6f7d;
+  --color-mist-400: #8b8b98;
+  --color-mist-300: #a9a9b4;
+  --color-paper-50: #f0eee7;
+  --color-paper-300: #cfccc2;
+  --color-accent-600: #e44d00;
+  --color-accent-500: #ff5c00;
+  --color-accent-400: #ff7d33;
+  --color-danger-500: #ff5252;
+  --color-ok-500: #3ecf6e;
+
+  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    80%,
+    100% {
+      transform: scale(1.55);
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply font-sans text-paper-50 antialiased;
+    background:
+      radial-gradient(1100px 520px at 75% -120px, rgb(255 92 0 / 0.07), transparent 70%),
+      radial-gradient(800px 400px at -10% 110%, rgb(255 92 0 / 0.04), transparent 70%),
+      var(--color-ink-900);
+  }
+
+  /* film grain */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: var(--color-accent-500);
+    color: var(--color-ink-950);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-600) transparent;
+  }
+
+  input[type='date'],
+  input[type='time'] {
+    color-scheme: dark;
+  }
+}
+
+@utility btn {
+  @apply inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md px-3.5
+    text-sm font-medium transition-colors select-none
+    disabled:pointer-events-none disabled:opacity-40;
+}
+
+@utility card {
+  @apply rounded-lg border border-ink-700 bg-ink-850/80;
+}
+
+@layer components {
+  .display {
+    @apply font-sans font-semibold tracking-[0.18em] uppercase;
+    font-variation-settings: 'wdth' 120;
+  }
+
+  .field {
+    @apply h-9 rounded-md border border-ink-600 bg-ink-850 px-3 text-sm text-paper-50
+      placeholder:text-mist-500 outline-none transition-colors
+      focus:border-accent-500/70 focus:bg-ink-800;
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold tracking-[0.14em] uppercase text-mist-500;
+  }
+
+  .btn-accent {
+    @apply btn bg-accent-500 text-ink-950 hover:bg-accent-400 active:bg-accent-600;
+  }
+
+  .btn-ghost {
+    @apply btn border border-ink-600 text-paper-300 hover:border-mist-500 hover:text-paper-50;
+  }
+
+  .btn-danger {
+    @apply btn border border-danger-500/40 text-danger-500 hover:bg-danger-500/10;
+  }
+
+  .icon-btn {
+    @apply inline-flex size-8 cursor-pointer items-center justify-center rounded-md
+      text-mist-500 transition-colors hover:bg-ink-700 hover:text-paper-50;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-ink-600 px-2.5 py-0.5
+      text-xs text-paper-300;
+  }
+
+  .menu {
+    @apply card absolute z-40 min-w-44 overflow-hidden p-1 shadow-xl shadow-black/50;
+  }
+
+  .menu-item {
+    @apply flex w-full cursor-pointer items-center gap-2.5 rounded px-2.5 py-2 text-left text-sm
+      text-paper-300 transition-colors hover:bg-ink-700 hover:text-paper-50;
+  }
+
+  /* chronograph tick ruler */
+  .ticks {
+    height: 8px;
+    background-image:
+      repeating-linear-gradient(90deg, var(--color-ink-600) 0 1px, transparent 1px 9px),
+      repeating-linear-gradient(90deg, var(--color-mist-500) 0 1px, transparent 1px 45px);
+    background-size:
+      100% 4px,
+      100% 8px;
+    background-position: bottom left, bottom left;
+    background-repeat: no-repeat;
+  }
+}
