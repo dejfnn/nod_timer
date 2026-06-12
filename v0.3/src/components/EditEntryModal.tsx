@@ -10,9 +10,11 @@ import { DAY, fmtDuration, fromInputs, toDateInput, toTimeInput } from '@/utils/
 interface EditEntryModalProps {
   entry: TimeEntry
   onClose: () => void
+  /** entry was just created — cancelling should remove it again */
+  deleteOnCancel?: boolean
 }
 
-export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
+export const EditEntryModal = ({ entry, onClose, deleteOnCancel = false }: EditEntryModalProps) => {
   const [description, setDescription] = useState(entry.description)
   const [projectId, setProjectId] = useState(entry.projectId)
   const [tagIds, setTagIds] = useState(entry.tagIds)
@@ -25,6 +27,11 @@ export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
   let stop = fromInputs(date, stopTime)
   if (!Number.isNaN(start) && !Number.isNaN(stop) && stop <= start) stop += DAY
   const valid = !Number.isNaN(start) && !Number.isNaN(stop)
+
+  const cancel = () => {
+    if (deleteOnCancel) void db.timeEntries.delete(entry.id)
+    onClose()
+  }
 
   const save = async () => {
     if (!valid) return
@@ -45,7 +52,7 @@ export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
   }
 
   return (
-    <Modal title="Edit time entry" onClose={onClose}>
+    <Modal title={deleteOnCancel ? 'New time entry' : 'Edit time entry'} onClose={cancel}>
       <div className="space-y-4">
         <div>
           <label className="label">Description</label>
@@ -96,6 +103,7 @@ export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
             <label className="label">Start</label>
             <input
               type="time"
+              step={900}
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               className="field font-mono text-xs"
@@ -105,6 +113,7 @@ export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
             <label className="label">Stop</label>
             <input
               type="time"
+              step={900}
               value={stopTime}
               onChange={(e) => setStopTime(e.target.value)}
               className="field font-mono text-xs"
@@ -121,7 +130,7 @@ export const EditEntryModal = ({ entry, onClose }: EditEntryModalProps) => {
             Delete
           </button>
           <div className="flex gap-2">
-            <button className="btn-ghost" onClick={onClose}>
+            <button className="btn-ghost" onClick={cancel}>
               Cancel
             </button>
             <button className="btn-accent" onClick={() => void save()} disabled={!valid}>

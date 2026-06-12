@@ -67,7 +67,7 @@ function layoutDay(items: { entry: TimeEntry; from: number; to: number }[]): Blo
 export const CalendarPage = () => {
   const settings = useSettings()
   const [weekOffset, setWeekOffset] = useState(0)
-  const [editing, setEditing] = useState<TimeEntry | null>(null)
+  const [editing, setEditing] = useState<{ entry: TimeEntry; isNew: boolean } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const now = useNow(MINUTE)
 
@@ -110,8 +110,9 @@ export const CalendarPage = () => {
   )
 
   const createAt = async (day: number, offsetY: number) => {
-    const hour = Math.floor(offsetY / HOUR_PX)
-    const start = day + hour * HOUR
+    // snap to the 15-minute slot under the cursor
+    const quarter = Math.floor(offsetY / (HOUR_PX / 4))
+    const start = day + quarter * 15 * MINUTE
     const entry: TimeEntry = {
       id: uid(),
       description: '',
@@ -119,10 +120,10 @@ export const CalendarPage = () => {
       tagIds: [],
       billable: false,
       start,
-      stop: start + HOUR,
+      stop: start + 15 * MINUTE,
     }
     await db.timeEntries.add(entry)
-    setEditing(entry)
+    setEditing({ entry, isNew: true })
   }
 
   const monthLabel = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(
@@ -203,7 +204,7 @@ export const CalendarPage = () => {
                       HOUR_PX +
                       'px)',
                   }}
-                  onDoubleClick={(e) => {
+                  onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect()
                     void createAt(day, e.clientY - rect.top)
                   }}
@@ -223,7 +224,10 @@ export const CalendarPage = () => {
                           background: 'color-mix(in srgb, ' + color + ' 22%, var(--color-ink-800))',
                           borderColor: color,
                         }}
-                        onClick={() => setEditing(b.entry)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditing({ entry: b.entry, isNew: false })
+                        }}
                       >
                         <div className="truncate text-[11px] leading-tight text-paper-50">
                           {b.entry.description || '(no description)'}
@@ -252,9 +256,17 @@ export const CalendarPage = () => {
         </div>
       </div>
 
-      <p className="mt-2 text-[11px] text-mist-500">Double-click an empty slot to add an entry.</p>
+      <p className="mt-2 text-[11px] text-mist-500">
+        Click an empty slot to add a 15-minute entry, then adjust its times.
+      </p>
 
-      {editing && <EditEntryModal entry={editing} onClose={() => setEditing(null)} />}
+      {editing && (
+        <EditEntryModal
+          entry={editing.entry}
+          deleteOnCancel={editing.isNew}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   )
 }
