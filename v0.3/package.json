@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "start": "serve -s dist -l 8080",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,7 +18,8 @@
     "dexie-react-hooks": "^1.1.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.6.0"
+    "react-router-dom": "^7.6.0",
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.10",
