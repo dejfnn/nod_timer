@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { useClients, useEntries, useProjects, useTags } from '@/hooks/queries'
 import { BarChart } from '@/components/charts/BarChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { Icon } from '@/components/Icon'
@@ -44,18 +43,17 @@ export const ReportsPage = () => {
     return { start, end: Math.max(end, start + DAY) }
   }, [preset, customStart, customEnd, settings.weekStart])
 
-  const entries =
-    useLiveQuery(
-      () =>
-        db.timeEntries
-          .where('start')
-          .between(range.start, range.end)
-          .sortBy('start'),
-      [range.start, range.end],
-    ) ?? []
-  const projects = useLiveQuery(() => db.projects.toArray(), []) ?? []
-  const clients = useLiveQuery(() => db.clients.toArray(), []) ?? []
-  const tags = useLiveQuery(() => db.tags.toArray(), []) ?? []
+  const allEntries = useEntries()
+  const entries = useMemo(
+    () =>
+      (allEntries ?? [])
+        .filter((e) => e.start >= range.start && e.start <= range.end)
+        .sort((a, b) => a.start - b.start),
+    [allEntries, range.start, range.end],
+  )
+  const projects = useProjects() ?? []
+  const clients = useClients() ?? []
+  const tags = useTags() ?? []
 
   const totalMs = entries.reduce((sum, e) => sum + (e.stop - e.start), 0)
   const billableAmount = entries.reduce((sum, e) => sum + entryAmount(e, projects, settings), 0)

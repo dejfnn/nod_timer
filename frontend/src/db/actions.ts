@@ -1,33 +1,55 @@
-import { db, uid } from '@/db/db'
-import type { RunningEntry, TimeEntry } from '@/types'
+import { qk, queryClient } from '@/lib/queryClient'
+import {
+  clientsApi,
+  entriesApi,
+  projectsApi,
+  runningApi,
+  settingsApi,
+  tagsApi,
+  type ClientInput,
+  type EntryInput,
+  type ProjectInput,
+  type RunningInput,
+  type TagInput,
+} from '@/api/resources'
+import { ApiError } from '@/lib/api'
+import type { Client, Project, RunningEntry, Settings, Tag, TimeEntry } from '@/types'
 
-export type TimerFields = Pick<
-  RunningEntry,
-  'description' | 'projectId' | 'tagIds' | 'billable'
->
+const invalidate = (...keys: ReadonlyArray<readonly string[]>) =>
+  Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
+
+export type TimerFields = Pick<RunningEntry, 'description' | 'projectId' | 'tagIds' | 'billable'>
+
+// ---- Timer ----------------------------------------------------------------
 
 export async function startTimer(fields: Partial<TimerFields> = {}): Promise<void> {
-  await stopTimer()
-  await db.running.put({
-    id: 'current',
+  await runningApi.start({
     description: fields.description ?? '',
     projectId: fields.projectId ?? null,
     tagIds: fields.tagIds ?? [],
     billable: fields.billable ?? false,
     start: Date.now(),
   })
+  await invalidate(qk.running)
 }
 
 export async function stopTimer(): Promise<void> {
-  const running = await db.running.get('current')
-  if (!running) return
-  const { id: _id, ...fields } = running
-  await db.timeEntries.add({ ...fields, id: uid(), stop: Date.now() })
-  await db.running.delete('current')
+  try {
+    await runningApi.stop(Date.now())
+  } catch (e) {
+    if (!(e instanceof ApiError && e.status === 404)) throw e // no running timer is fine
+  }
+  await invalidate(qk.running, qk.entries)
 }
 
 export async function discardTimer(): Promise<void> {
-  await db.running.delete('current')
+  await runningApi.discard()
+  await invalidate(qk.running)
+}
+
+export async function updateRunning(fields: RunningInput): Promise<void> {
+  await runningApi.update(fields)
+  await invalidate(qk.running)
 }
 
 export async function continueEntry(entry: TimeEntry): Promise<void> {
@@ -35,40 +57,86 @@ export async function continueEntry(entry: TimeEntry): Promise<void> {
 }
 
 export async function duplicateEntry(entry: TimeEntry): Promise<void> {
-  await db.timeEntries.add({ ...entry, id: uid() })
+  const { id: _id, ...rest } = entry
+  await entriesApi.create(rest)
+  await invalidate(qk.entries)
+}
+
+// ---- Time entries ---------------------------------------------------------
+
+export async function createEntry(data: EntryInput): Promise<TimeEntry> {
+  const entry = await entriesApi.create(data)
+  await invalidate(qk.entries)
+  return entry
+}
+
+export async function updateEntry(id: string, data: Partial<EntryInput>): Promise<void> {
+  await entriesApi.update(id, data)
+  await invalidate(qk.entries)
+}
+
+export async function deleteEntry(id: string): Promise<void> {
+  await entriesApi.remove(id)
+  await invalidate(qk.entries)
+}
+
+// ---- Projects -------------------------------------------------------------
+
+export async function createProject(data: ProjectInput): Promise<Project> {
+  const project = await projectsApi.create(data)
+  await invalidate(qk.projects)
+  return project
+}
+
+export async function updateProject(id: string, data: Partial<ProjectInput>): Promise<void> {
+  await projectsApi.update(id, data)
+  await invalidate(qk.projects)
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
-  await db.transaction('rw', db.projects, db.timeEntries, db.running, async () => {
-    await db.projects.delete(projectId)
-    await db.timeEntries.where('projectId').equals(projectId).modify({ projectId: null })
-    const running = await db.running.get('current')
-    if (running?.projectId === projectId) {
-      await db.running.update('current', { projectId: null })
-    }
-  })
+  await projectsApi.remove(projectId)
+  await invalidate(qk.projects, qk.entries, qk.running)
+}
+
+// ---- Clients --------------------------------------------------------------
+
+export async function createClient(data: ClientInput): Promise<Client> {
+  const client = await clientsApi.create(data)
+  await invalidate(qk.clients)
+  return client
+}
+
+export async function updateClient(id: string, data: Partial<ClientInput>): Promise<void> {
+  await clientsApi.update(id, data)
+  await invalidate(qk.clients)
 }
 
 export async function deleteClient(clientId: string): Promise<void> {
-  await db.transaction('rw', db.clients, db.projects, async () => {
-    await db.clients.delete(clientId)
-    await db.projects.where('clientId').equals(clientId).modify({ clientId: null })
-  })
+  await clientsApi.remove(clientId)
+  await invalidate(qk.clients, qk.projects)
+}
+
+// ---- Tags -----------------------------------------------------------------
+
+export async function createTag(data: TagInput): Promise<Tag> {
+  const tag = await tagsApi.create(data)
+  await invalidate(qk.tags)
+  return tag
+}
+
+export async function updateTag(id: string, data: Partial<TagInput>): Promise<void> {
+  await tagsApi.update(id, data)
+  await invalidate(qk.tags)
 }
 
 export async function deleteTag(tagId: string): Promise<void> {
-  await db.transaction('rw', db.tags, db.timeEntries, db.running, async () => {
-    await db.tags.delete(tagId)
-    await db.timeEntries
-      .filter((e) => e.tagIds.includes(tagId))
-      .modify((e) => {
-        e.tagIds = e.tagIds.filter((t) => t !== tagId)
-      })
-    const running = await db.running.get('current')
-    if (running?.tagIds.includes(tagId)) {
-      await db.running.update('current', {
-        tagIds: running.tagIds.filter((t) => t !== tagId),
-      })
-    }
-  })
+  await tagsApi.remove(tagId)
+  await invalidate(qk.tags, qk.entries, qk.running)
+}
+
+// ---- Settings -------------------------------------------------------------
+
+export async function saveSettings(data: Partial<Settings>): Promise<void> {
+  await settingsApi.update(data)
+  await invalidate(qk.settings)
 }

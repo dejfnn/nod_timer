@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
-import { deleteProject } from '@/db/actions'
+import { useClients, useProjects, useEntries } from '@/hooks/queries'
+import { createProject, updateProject, deleteProject } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { Modal } from '@/components/Modal'
 import { useSettings } from '@/hooks/useSettings'
@@ -26,9 +25,9 @@ export const ProjectsPage = () => {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [showArchived, setShowArchived] = useState(false)
 
-  const projects = useLiveQuery(() => db.projects.orderBy('name').toArray(), []) ?? []
-  const clients = useLiveQuery(() => db.clients.orderBy('name').toArray(), []) ?? []
-  const entries = useLiveQuery(() => db.timeEntries.toArray(), []) ?? []
+  const projects = (useProjects() ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  const clients = (useClients() ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  const entries = useEntries() ?? []
 
   const trackedMs = useMemo(() => {
     const map = new Map<string, number>()
@@ -46,8 +45,8 @@ export const ProjectsPage = () => {
     if (!draft || !draft.name.trim()) return
     const { id, ...fields } = draft
     const data = { ...fields, name: draft.name.trim() }
-    if (id) await db.projects.update(id, data)
-    else await db.projects.add({ ...data, id: uid() })
+    if (id) await updateProject(id, data)
+    else await createProject(data)
     setDraft(null)
   }
 
@@ -105,7 +104,7 @@ export const ProjectsPage = () => {
                 <button
                   className="icon-btn"
                   title={p.archived ? 'Unarchive' : 'Archive'}
-                  onClick={() => void db.projects.update(p.id, { archived: !p.archived })}
+                  onClick={() => void updateProject(p.id, { archived: !p.archived })}
                 >
                   <Icon name="archive" size={15} />
                 </button>

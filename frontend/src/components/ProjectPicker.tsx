@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
+import { useClients, useProjects } from '@/hooks/queries'
+import { createProject as createProjectAction } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import { randomProjectColor } from '@/utils/colors'
@@ -18,8 +18,8 @@ export const ProjectPicker = ({ value, onChange, compact = false }: ProjectPicke
   const ref = useRef<HTMLDivElement>(null)
   useClickOutside(ref, () => setOpen(false), open)
 
-  const projects = useLiveQuery(() => db.projects.toArray(), []) ?? []
-  const clients = useLiveQuery(() => db.clients.toArray(), []) ?? []
+  const projects = useProjects() ?? []
+  const clients = useClients() ?? []
 
   const selected = projects.find((p) => p.id === value) ?? null
   const clientName = (clientId: string | null) =>
@@ -42,16 +42,14 @@ export const ProjectPicker = ({ value, onChange, compact = false }: ProjectPicke
   const createProject = async () => {
     const name = query.trim()
     if (!name) return
-    const id = uid()
-    await db.projects.add({
-      id,
+    const project = await createProjectAction({
       name,
       color: randomProjectColor(),
       clientId: null,
       rate: null,
       archived: false,
     })
-    onChange(id)
+    onChange(project.id)
     setQuery('')
     setOpen(false)
   }

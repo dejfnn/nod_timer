@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { useClients, useEntries, useProjects, useTags } from '@/hooks/queries'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { EntryRow } from '@/components/EntryRow'
 import { useSettings } from '@/hooks/useSettings'
@@ -14,13 +13,13 @@ export const TimerPage = () => {
   const [editing, setEditing] = useState<TimeEntry | null>(null)
   const settings = useSettings()
 
-  const entries = useLiveQuery(
-    () => db.timeEntries.orderBy('start').reverse().limit(limit + 1).toArray(),
-    [limit],
-  )
-  const projects = useLiveQuery(() => db.projects.toArray(), []) ?? []
-  const clients = useLiveQuery(() => db.clients.toArray(), []) ?? []
-  const tags = useLiveQuery(() => db.tags.toArray(), []) ?? []
+  const allEntries = useEntries()
+  // useEntries() returns ALL entries sorted start DESC; apply the same
+  // `limit + 1` window the former Dexie query used (extra row = "has more").
+  const entries = useMemo(() => allEntries?.slice(0, limit + 1), [allEntries, limit])
+  const projects = useProjects() ?? []
+  const clients = useClients() ?? []
+  const tags = useTags() ?? []
 
   const hasMore = (entries?.length ?? 0) > limit
   const visible = entries?.slice(0, limit) ?? []

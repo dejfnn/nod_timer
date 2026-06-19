@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
+import { useEntries, useProjects } from '@/hooks/queries'
+import { createEntry } from '@/db/actions'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { Icon } from '@/components/Icon'
 import { useNow } from '@/hooks/useNow'
@@ -78,16 +78,13 @@ export const CalendarPage = () => {
     [weekStartTs],
   )
 
-  const entries =
-    useLiveQuery(
-      () =>
-        db.timeEntries
-          .where('start')
-          .between(weekStartTs - DAY, weekEndTs)
-          .toArray(),
-      [weekStartTs, weekEndTs],
-    ) ?? []
-  const projects = useLiveQuery(() => db.projects.toArray(), []) ?? []
+  const allEntries = useEntries()
+  const entries = useMemo(
+    () =>
+      (allEntries ?? []).filter((e) => e.start >= weekStartTs - DAY && e.start <= weekEndTs),
+    [allEntries, weekStartTs, weekEndTs],
+  )
+  const projects = useProjects() ?? []
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 7.5 * HOUR_PX })
@@ -113,16 +110,14 @@ export const CalendarPage = () => {
     // snap to the 15-minute slot under the cursor
     const quarter = Math.floor(offsetY / (HOUR_PX / 4))
     const start = day + quarter * 15 * MINUTE
-    const entry: TimeEntry = {
-      id: uid(),
+    const entry = await createEntry({
       description: '',
       projectId: null,
       tagIds: [],
       billable: false,
       start,
       stop: start + 15 * MINUTE,
-    }
-    await db.timeEntries.add(entry)
+    })
     setEditing({ entry, isNew: true })
   }
 

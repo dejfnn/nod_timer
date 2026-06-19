@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
-import { discardTimer, startTimer, stopTimer } from '@/db/actions'
+import { useRunning } from '@/hooks/queries'
+import { createEntry, discardTimer, startTimer, stopTimer, updateRunning } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { ProjectPicker } from '@/components/ProjectPicker'
 import { TagPicker } from '@/components/TagPicker'
@@ -11,7 +10,7 @@ import { DAY, fmtDuration, fromInputs, toDateInput } from '@/utils/time'
 export const FOCUS_TIMER_EVENT = 'tf:focus-timer'
 
 export const TimerBar = () => {
-  const running = useLiveQuery(() => db.running.get('current'), [])
+  const running = useRunning()
   const now = useNow(running ? 500 : null)
 
   const [description, setDescription] = useState('')
@@ -50,8 +49,7 @@ export const TimerBar = () => {
     let stop = fromInputs(manualDate, manualStop)
     if (Number.isNaN(start) || Number.isNaN(stop)) return
     if (stop <= start) stop += DAY
-    await db.timeEntries.add({
-      id: uid(),
+    await createEntry({
       description: description.trim(),
       projectId,
       tagIds,
@@ -61,9 +59,6 @@ export const TimerBar = () => {
     })
     setDescription('')
   }
-
-  const updateRunning = (patch: Parameters<typeof db.running.update>[1]) =>
-    void db.running.update('current', patch)
 
   return (
     <div className="border-b border-ink-700 bg-ink-850/60 backdrop-blur">

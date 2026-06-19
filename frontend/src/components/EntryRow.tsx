@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
-import { continueEntry, duplicateEntry } from '@/db/actions'
-import { db } from '@/db/db'
+import { continueEntry, duplicateEntry, deleteEntry } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import type { Client, Project, Tag, TimeEntry } from '@/types'
@@ -93,7 +92,7 @@ export const EntryRow = ({ entry, projects, clients, tags, hourFormat, onEdit }:
               </button>
               <button
                 className="menu-item text-danger-500 hover:text-danger-500"
-                onClick={() => { setMenuOpen(false); void db.timeEntries.delete(entry.id) }}
+                onClick={() => { setMenuOpen(false); void deleteEntry(entry.id) }}
               >
                 <Icon name="trash" size={14} /> Delete
               </button>

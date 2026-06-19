@@ -30,7 +30,7 @@ export interface TimeEntry {
 
 /** The single currently-running timer, kept out of timeEntries until stopped. */
 export interface RunningEntry {
-  id: 'current'
+  id: string
   description: string
   projectId: string | null
   tagIds: string[]
@@ -39,9 +39,13 @@ export interface RunningEntry {
 }
 
 export interface Settings {
-  id: 'app'
   currency: string
   defaultRate: number
   weekStart: 0 | 1
   hourFormat: '12' | '24'
+}
+
+export interface User {
+  id: string
+  email: string
 }

@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { db } from '@/db/db'
 import { startTimer, stopTimer } from '@/db/actions'
+import { qk, queryClient } from '@/lib/queryClient'
+import { useAuth } from '@/auth/AuthContext'
 import { Sidebar } from '@/components/Sidebar'
 import { TimerBar, FOCUS_TIMER_EVENT } from '@/components/TimerBar'
+import { AuthPage } from '@/pages/AuthPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
@@ -11,6 +13,7 @@ import { ReportsPage } from '@/pages/ReportsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TagsPage } from '@/pages/TagsPage'
 import { TimerPage } from '@/pages/TimerPage'
+import type { RunningEntry } from '@/types'
 
 const useGlobalShortcuts = () => {
   useEffect(() => {
@@ -21,7 +24,8 @@ const useGlobalShortcuts = () => {
 
       if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
-        void db.running.get('current').then((running) => (running ? stopTimer() : startTimer()))
+        const running = queryClient.getQueryData<RunningEntry | null>(qk.running)
+        void (running ? stopTimer() : startTimer())
       }
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault()
@@ -34,7 +38,16 @@ const useGlobalShortcuts = () => {
 }
 
 export const App = () => {
+  const { user, loading } = useAuth()
   useGlobalShortcuts()
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center text-mist-400">…</div>
+  }
+
+  if (!user) {
+    return <AuthPage />
+  }
 
   return (
     <BrowserRouter>

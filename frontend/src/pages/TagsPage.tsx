@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
-import { deleteTag } from '@/db/actions'
+import { useTags, useEntries } from '@/hooks/queries'
+import { createTag, updateTag, deleteTag } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 
 export const TagsPage = () => {
@@ -9,21 +8,21 @@ export const TagsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
-  const tags = useLiveQuery(() => db.tags.orderBy('name').toArray(), []) ?? []
-  const entries = useLiveQuery(() => db.timeEntries.toArray(), []) ?? []
+  const tags = useTags() ?? []
+  const entries = useEntries() ?? []
 
   const usage = (tagId: string) => entries.filter((e) => e.tagIds.includes(tagId)).length
 
   const add = async () => {
     const trimmed = name.trim()
     if (!trimmed) return
-    await db.tags.add({ id: uid(), name: trimmed })
+    await createTag({ name: trimmed })
     setName('')
   }
 
   const saveEdit = async () => {
     if (editingId && editName.trim()) {
-      await db.tags.update(editingId, { name: editName.trim() })
+      await updateTag(editingId, { name: editName.trim() })
     }
     setEditingId(null)
   }

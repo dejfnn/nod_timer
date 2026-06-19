@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { useEntries } from '@/hooks/queries'
 import { Icon, type IconName } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
 import { fmtDuration, getRange } from '@/utils/time'
@@ -17,12 +16,12 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
 
 export const Sidebar = () => {
   const settings = useSettings()
+  const entries = useEntries()
+  const { start, end } = getRange('week', settings.weekStart)
   const weekTotal =
-    useLiveQuery(async () => {
-      const { start, end } = getRange('week', settings.weekStart)
-      const entries = await db.timeEntries.where('start').between(start, end).toArray()
-      return entries.reduce((sum, e) => sum + (e.stop - e.start), 0)
-    }, [settings.weekStart]) ?? 0
+    entries
+      ?.filter((e) => e.start >= start && e.start <= end)
+      .reduce((sum, e) => sum + (e.stop - e.start), 0) ?? 0
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-ink-700 bg-ink-950/70">

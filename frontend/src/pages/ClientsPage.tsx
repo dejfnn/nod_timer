@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
-import { deleteClient } from '@/db/actions'
+import { useClients, useProjects } from '@/hooks/queries'
+import { createClient, updateClient, deleteClient } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 
 export const ClientsPage = () => {
@@ -9,19 +8,19 @@ export const ClientsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
 
-  const clients = useLiveQuery(() => db.clients.orderBy('name').toArray(), []) ?? []
-  const projects = useLiveQuery(() => db.projects.toArray(), []) ?? []
+  const clients = [...(useClients() ?? [])].sort((a, b) => a.name.localeCompare(b.name))
+  const projects = useProjects() ?? []
 
   const add = async () => {
     const trimmed = name.trim()
     if (!trimmed) return
-    await db.clients.add({ id: uid(), name: trimmed })
+    await createClient({ name: trimmed })
     setName('')
   }
 
   const saveEdit = async () => {
     if (editingId && editName.trim()) {
-      await db.clients.update(editingId, { name: editName.trim() })
+      await updateClient(editingId, { name: editName.trim() })
     }
     setEditingId(null)
   }

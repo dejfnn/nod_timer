@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db, uid } from '@/db/db'
+import { useTags } from '@/hooks/queries'
+import { createTag as createTagAction } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { useClickOutside } from '@/hooks/useClickOutside'
 
@@ -15,7 +15,7 @@ export const TagPicker = ({ value, onChange }: TagPickerProps) => {
   const ref = useRef<HTMLDivElement>(null)
   useClickOutside(ref, () => setOpen(false), open)
 
-  const tags = useLiveQuery(() => db.tags.orderBy('name').toArray(), []) ?? []
+  const tags = useTags() ?? []
   const selected = tags.filter((t) => value.includes(t.id))
   const filtered = tags.filter((t) => t.name.toLowerCase().includes(query.trim().toLowerCase()))
   const exactMatch = tags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase())
@@ -27,9 +27,8 @@ export const TagPicker = ({ value, onChange }: TagPickerProps) => {
   const createTag = async () => {
     const name = query.trim()
     if (!name) return
-    const id = uid()
-    await db.tags.add({ id, name })
-    onChange([...value, id])
+    const tag = await createTagAction({ name })
+    onChange([...value, tag.id])
     setQuery('')
   }
 

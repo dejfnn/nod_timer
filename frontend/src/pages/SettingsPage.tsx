@@ -1,7 +1,10 @@
 import { useRef } from 'react'
-import { db, DEFAULT_SETTINGS } from '@/db/db'
 import { Icon } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
+import { saveSettings } from '@/db/actions'
+import { dataApi } from '@/api/resources'
+import { queryClient } from '@/lib/queryClient'
+import { DEFAULT_SETTINGS } from '@/lib/constants'
 import type { Settings } from '@/types'
 import { downloadFile } from '@/utils/csv'
 import { toDateInput } from '@/utils/time'
@@ -13,18 +16,10 @@ export const SettingsPage = () => {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const update = (patch: Partial<Settings>) =>
-    void db.settings.put({ ...DEFAULT_SETTINGS, ...settings, ...patch })
+    void saveSettings({ ...DEFAULT_SETTINGS, ...settings, ...patch })
 
   const exportJson = async () => {
-    const data = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      clients: await db.clients.toArray(),
-      projects: await db.projects.toArray(),
-      tags: await db.tags.toArray(),
-      timeEntries: await db.timeEntries.toArray(),
-      settings: await db.settings.toArray(),
-    }
+    const data = await dataApi.export()
     downloadFile(
       `timeflow_backup_${toDateInput(Date.now())}.json`,
       JSON.stringify(data, null, 2),
@@ -37,25 +32,8 @@ export const SettingsPage = () => {
       const data = JSON.parse(await file.text())
       if (!Array.isArray(data.timeEntries)) throw new Error('invalid file')
       if (!confirm('Importing replaces ALL current data. Continue?')) return
-      await db.transaction(
-        'rw',
-        [db.clients, db.projects, db.tags, db.timeEntries, db.running, db.settings],
-        async () => {
-          await Promise.all([
-            db.clients.clear(),
-            db.projects.clear(),
-            db.tags.clear(),
-            db.timeEntries.clear(),
-            db.running.clear(),
-            db.settings.clear(),
-          ])
-          await db.clients.bulkAdd(data.clients ?? [])
-          await db.projects.bulkAdd(data.projects ?? [])
-          await db.tags.bulkAdd(data.tags ?? [])
-          await db.timeEntries.bulkAdd(data.timeEntries ?? [])
-          await db.settings.bulkAdd(data.settings ?? [])
-        },
-      )
+      await dataApi.import(data)
+      await queryClient.invalidateQueries()
       alert('Import finished.')
     } catch {
       alert('Import failed — not a valid TimeFlow backup file.')
@@ -65,13 +43,16 @@ export const SettingsPage = () => {
   const wipe = async () => {
     if (!confirm('Delete ALL data? This cannot be undone.')) return
     if (!confirm('Really sure? Consider exporting a backup first.')) return
-    await Promise.all([
-      db.clients.clear(),
-      db.projects.clear(),
-      db.tags.clear(),
-      db.timeEntries.clear(),
-      db.running.clear(),
-    ])
+    await dataApi.import({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      clients: [],
+      projects: [],
+      tags: [],
+      timeEntries: [],
+      settings: [],
+    })
+    await queryClient.invalidateQueries()
   }
 
   return (

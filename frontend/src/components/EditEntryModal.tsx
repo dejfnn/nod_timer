@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { db } from '@/db/db'
+import { updateEntry, deleteEntry } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { Modal } from '@/components/Modal'
 import { ProjectPicker } from '@/components/ProjectPicker'
@@ -29,13 +29,13 @@ export const EditEntryModal = ({ entry, onClose, deleteOnCancel = false }: EditE
   const valid = !Number.isNaN(start) && !Number.isNaN(stop)
 
   const cancel = () => {
-    if (deleteOnCancel) void db.timeEntries.delete(entry.id)
+    if (deleteOnCancel) void deleteEntry(entry.id)
     onClose()
   }
 
   const save = async () => {
     if (!valid) return
-    await db.timeEntries.update(entry.id, {
+    await updateEntry(entry.id, {
       description: description.trim(),
       projectId,
       tagIds,
@@ -47,7 +47,7 @@ export const EditEntryModal = ({ entry, onClose, deleteOnCancel = false }: EditE
   }
 
   const remove = async () => {
-    await db.timeEntries.delete(entry.id)
+    await deleteEntry(entry.id)
     onClose()
   }
 
