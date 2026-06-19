@@ -1,0 +1,74 @@
+import { Hono } from 'hono'
+import { z } from 'zod'
+import { Prisma } from '@prisma/client'
+import { prisma } from '../db'
+import { authMiddleware, type AuthEnv } from '../auth'
+
+const app = new Hono<AuthEnv>()
+app.use('*', authMiddleware)
+
+const EntryInput = z.object({
+  description: z.string().optional(),
+  projectId: z.string().nullable().optional(),
+  tagIds: z.array(z.string()).optional(),
+  billable: z.boolean().optional(),
+  start: z.number(),
+  stop: z.number(),
+})
+
+// GET /api/entries?from=<ms>&to=<ms>  — range is optional (returns all if omitted)
+app.get('/', async (c) => {
+  const from = c.req.query('from')
+  const to = c.req.query('to')
+  const where: Prisma.TimeEntryWhereInput = { userId: c.get('userId') }
+  if (from || to) {
+    where.start = {}
+    if (from) (where.start as Prisma.BigIntFilter).gte = BigInt(from)
+    if (to) (where.start as Prisma.BigIntFilter).lt = BigInt(to)
+  }
+  const entries = await prisma.timeEntry.findMany({ where, orderBy: { start: 'desc' } })
+  return c.json(entries)
+})
+
+app.post('/', async (c) => {
+  const body = EntryInput.parse(await c.req.json())
+  const entry = await prisma.timeEntry.create({
+    data: {
+      userId: c.get('userId'),
+      description: body.description ?? '',
+      projectId: body.projectId ?? null,
+      tagIds: body.tagIds ?? [],
+      billable: body.billable ?? false,
+      start: BigInt(body.start),
+      stop: BigInt(body.stop),
+    },
+  })
+  return c.json(entry, 201)
+})
+
+app.patch('/:id', async (c) => {
+  const id = c.req.param('id')
+  const body = EntryInput.partial().parse(await c.req.json())
+  const data: Prisma.TimeEntryUncheckedUpdateManyInput = {}
+  if (body.description !== undefined) data.description = body.description
+  if (body.projectId !== undefined) data.projectId = body.projectId
+  if (body.tagIds !== undefined) data.tagIds = body.tagIds
+  if (body.billable !== undefined) data.billable = body.billable
+  if (body.start !== undefined) data.start = BigInt(body.start)
+  if (body.stop !== undefined) data.stop = BigInt(body.stop)
+  const { count } = await prisma.timeEntry.updateMany({
+    where: { id, userId: c.get('userId') },
+    data,
+  })
+  if (count === 0) return c.json({ error: 'Not found' }, 404)
+  return c.json(await prisma.timeEntry.findUnique({ where: { id } }))
+})
+
+app.delete('/:id', async (c) => {
+  const id = c.req.param('id')
+  const { count } = await prisma.timeEntry.deleteMany({ where: { id, userId: c.get('userId') } })
+  if (count === 0) return c.json({ error: 'Not found' }, 404)
+  return c.json({ ok: true })
+})
+
+export default app

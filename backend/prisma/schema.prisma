@@ -1,0 +1,103 @@
+// TimeFlow data model — mirrors the former Dexie/IndexedDB schema (frontend
+// src/types.ts), with a per-user owner added for multi-user support.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  clients     Client[]
+  projects    Project[]
+  tags        Tag[]
+  timeEntries TimeEntry[]
+  running     RunningEntry?
+  settings    Settings?
+}
+
+model Client {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+
+  projects Project[]
+
+  @@index([userId])
+}
+
+model Project {
+  id       String  @id @default(uuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  color    String
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  rate     Float?
+  archived Boolean @default(false)
+
+  timeEntries TimeEntry[]
+
+  @@index([userId])
+  @@index([clientId])
+}
+
+model Tag {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+
+  @@index([userId])
+}
+
+model TimeEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description String   @default("")
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tagIds      String[]
+  billable    Boolean  @default(false)
+  start       BigInt
+  stop        BigInt
+
+  @@index([userId])
+  @@index([userId, start])
+  @@index([projectId])
+}
+
+// At most one running timer per user (userId is unique). projectId is kept as a
+// plain field (no FK) so deleting a project just nulls it via app logic, mirroring
+// the frontend's actions.ts behaviour.
+model RunningEntry {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description String   @default("")
+  projectId   String?
+  tagIds      String[]
+  billable    Boolean  @default(false)
+  start       BigInt
+}
+
+// Per-user singleton settings (keyed directly by userId).
+model Settings {
+  userId      String @id
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency    String @default("CZK")
+  defaultRate Float  @default(0)
+  weekStart   Int    @default(1)
+  hourFormat  String @default("24")
+}
