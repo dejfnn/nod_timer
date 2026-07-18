@@ -11,6 +11,7 @@ const SettingsInput = z.object({
   defaultRate: z.number().optional(),
   weekStart: z.union([z.literal(0), z.literal(1)]).optional(),
   hourFormat: z.union([z.literal('12'), z.literal('24')]).optional(),
+  pomodoroMinutes: z.number().int().min(0).max(480).optional(),
 })
 
 app.get('/', async (c) => {

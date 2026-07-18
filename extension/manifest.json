@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "TimeFlow Timer",
+  "version": "0.1.0",
+  "description": "Start and stop your TimeFlow timer from the browser toolbar.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TimeFlow"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*", "https://*/*"]
+}

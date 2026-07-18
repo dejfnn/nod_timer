@@ -17,8 +17,9 @@ import { TagPicker } from '@/components/TagPicker'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useNow } from '@/hooks/useNow'
+import { useSettings } from '@/hooks/useSettings'
 import { randomProjectColor } from '@/utils/colors'
-import { DAY, fmtDuration, fromInputs, toDateInput } from '@/utils/time'
+import { DAY, fmtDuration, fromInputs, MINUTE, toDateInput } from '@/utils/time'
 
 export const FOCUS_TIMER_EVENT = 'tf:focus-timer'
 
@@ -190,6 +191,24 @@ export const TimerBar = () => {
   useEffect(() => {
     document.title = running ? `${fmtDuration(elapsed)} — TimeFlow` : 'TimeFlow'
   }, [running, elapsed])
+
+  // focus reminder: notify once when the timer passes the configured length
+  const settings = useSettings()
+  const remindedRef = useRef(false)
+  useEffect(() => {
+    remindedRef.current = false
+  }, [runningKey])
+  useEffect(() => {
+    if (!running || settings.pomodoroMinutes <= 0 || remindedRef.current) return
+    if (elapsed < settings.pomodoroMinutes * MINUTE) return
+    remindedRef.current = true
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('TimeFlow', {
+        body: `You've been tracking for ${settings.pomodoroMinutes} minutes — time for a break?`,
+        icon: '/icon.svg',
+      })
+    }
+  }, [running, elapsed, settings.pomodoroMinutes])
 
   useEffect(() => {
     const focus = () => inputRef.current?.focus()

@@ -144,6 +144,26 @@ export const SettingsPage = () => {
               <option value="12">12-hour</option>
             </select>
           </div>
+          <div>
+            <label className="label">Focus reminder</label>
+            <select
+              value={settings.pomodoroMinutes}
+              onChange={(e) => {
+                const minutes = Number(e.target.value)
+                if (minutes > 0 && 'Notification' in window && Notification.permission === 'default') {
+                  void Notification.requestPermission()
+                }
+                update({ pomodoroMinutes: minutes })
+              }}
+              className="field w-full"
+            >
+              <option value={0}>Off</option>
+              <option value={25}>After 25 min (Pomodoro)</option>
+              <option value={45}>After 45 min</option>
+              <option value={60}>After 1 hour</option>
+              <option value={90}>After 90 min</option>
+            </select>
+          </div>
         </div>
         <p className="mt-3 text-xs text-mist-500">
           The default hourly rate applies to billable entries on projects without their own rate.

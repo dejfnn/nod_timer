@@ -3,7 +3,13 @@ import { entryAmount, entryRate, fmtMoney } from './money'
 import { HOUR } from './time'
 import type { Project, Settings, TimeEntry } from '@/types'
 
-const settings: Settings = { currency: 'CZK', defaultRate: 500, weekStart: 1, hourFormat: '24' }
+const settings: Settings = {
+  currency: 'CZK',
+  defaultRate: 500,
+  weekStart: 1,
+  hourFormat: '24',
+  pomodoroMinutes: 0,
+}
 const projects: Project[] = [
   { id: 'p1', name: 'A', color: '#fff', clientId: null, rate: 1000, archived: false, estimateHours: null },
   { id: 'p2', name: 'B', color: '#fff', clientId: null, rate: null, archived: false, estimateHours: null },

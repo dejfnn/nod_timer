@@ -47,6 +47,8 @@ export interface Settings {
   defaultRate: number
   weekStart: 0 | 1
   hourFormat: '12' | '24'
+  /** focus reminder: notify after N minutes of continuous tracking; 0 = off */
+  pomodoroMinutes: number
 }
 
 export interface User {

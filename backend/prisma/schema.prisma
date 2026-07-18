@@ -119,4 +119,6 @@ model Settings {
   defaultRate Float  @default(0)
   weekStart   Int    @default(1)
   hourFormat  String @default("24")
+  /** focus reminder: notify after N minutes of continuous tracking; 0 = off */
+  pomodoroMinutes Int @default(0)
 }

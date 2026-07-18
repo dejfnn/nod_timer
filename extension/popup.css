@@ -1,0 +1,96 @@
+body {
+  width: 300px;
+  margin: 0;
+  padding: 14px;
+  background: #16130f;
+  color: #f0eee7;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d8678;
+}
+
+input {
+  padding: 8px 10px;
+  border: 1px solid #3a352c;
+  border-radius: 6px;
+  background: #211d17;
+  color: #f0eee7;
+  outline: none;
+}
+
+input:focus {
+  border-color: #ff5c00;
+}
+
+button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.accent {
+  background: #ff5c00;
+  color: #16130f;
+}
+
+button.stop {
+  background: #e14f4f;
+  color: #16130f;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #3a352c;
+  color: #b9b2a4;
+}
+
+button.small {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.elapsed {
+  font-family: ui-monospace, monospace;
+  font-size: 20px;
+  color: #ff8a47;
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  margin: 0;
+  color: #e14f4f;
+  font-size: 12px;
+}
