@@ -22,6 +22,16 @@ app.get('/', async (c) => {
   return c.json(projects)
 })
 
+// GET /api/projects/stats — total tracked ms per project (all time)
+app.get('/stats', async (c) => {
+  const rows = await prisma.$queryRaw<{ projectId: string; ms: number }[]>`
+    SELECT "projectId", SUM("stop" - "start")::float AS ms
+    FROM "TimeEntry"
+    WHERE "userId" = ${c.get('userId')} AND "projectId" IS NOT NULL
+    GROUP BY "projectId"`
+  return c.json(rows)
+})
+
 app.post('/', async (c) => {
   const body = ProjectInput.parse(await c.req.json())
   const project = await prisma.project.create({ data: { ...body, userId: c.get('userId') } })

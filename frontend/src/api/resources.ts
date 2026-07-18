@@ -36,8 +36,22 @@ export const tagsApi = {
 }
 
 export type EntryInput = Omit<TimeEntry, 'id'>
+export interface EntriesQuery {
+  from?: number
+  to?: number
+  limit?: number
+  beforeStart?: number
+  beforeId?: string
+}
 export const entriesApi = {
-  list: () => apiGet<TimeEntry[]>('/api/entries'),
+  list: (params: EntriesQuery = {}) => {
+    const qs = new URLSearchParams()
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) qs.set(key, String(value))
+    }
+    const suffix = qs.size > 0 ? `?${qs}` : ''
+    return apiGet<TimeEntry[]>(`/api/entries${suffix}`)
+  },
   create: (data: EntryInput) => apiPost<TimeEntry>('/api/entries', data),
   update: (id: string, data: Partial<EntryInput>) => apiPatch<TimeEntry>(`/api/entries/${id}`, data),
   remove: (id: string) => apiDelete<{ ok: true }>(`/api/entries/${id}`),
@@ -50,6 +64,11 @@ export const runningApi = {
   update: (data: RunningInput) => apiPatch<RunningEntry>('/api/running', data),
   stop: (stop?: number) => apiPost<TimeEntry>('/api/running/stop', stop === undefined ? {} : { stop }),
   discard: () => apiDelete<{ ok: true }>('/api/running'),
+}
+
+export const statsApi = {
+  projects: () => apiGet<{ projectId: string; ms: number }[]>('/api/projects/stats'),
+  tags: () => apiGet<{ tagId: string; count: number }[]>('/api/tags/stats'),
 }
 
 export const settingsApi = {

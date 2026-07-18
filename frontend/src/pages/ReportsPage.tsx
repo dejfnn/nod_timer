@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useClients, useEntries, useProjects, useTags } from '@/hooks/queries'
+import { useClients, useEntriesRange, useProjects, useTags } from '@/hooks/queries'
 import { BarChart } from '@/components/charts/BarChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { Icon } from '@/components/Icon'
@@ -43,13 +43,10 @@ export const ReportsPage = () => {
     return { start, end: Math.max(end, start + DAY) }
   }, [preset, customStart, customEnd, settings.weekStart])
 
-  const allEntries = useEntries()
+  const rangeEntries = useEntriesRange(range.start, range.end)
   const entries = useMemo(
-    () =>
-      (allEntries ?? [])
-        .filter((e) => e.start >= range.start && e.start <= range.end)
-        .sort((a, b) => a.start - b.start),
-    [allEntries, range.start, range.end],
+    () => [...(rangeEntries ?? [])].sort((a, b) => a.start - b.start),
+    [rangeEntries],
   )
   const projects = useProjects() ?? []
   const clients = useClients() ?? []

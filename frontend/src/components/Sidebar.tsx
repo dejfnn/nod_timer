@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '@/auth/AuthContext'
-import { useEntries } from '@/hooks/queries'
+import { useEntriesRange } from '@/hooks/queries'
 import { Icon, type IconName } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
 import { fmtDuration, getRange } from '@/utils/time'
@@ -18,12 +18,9 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
 export const Sidebar = () => {
   const { user, logout } = useAuth()
   const settings = useSettings()
-  const entries = useEntries()
   const { start, end } = getRange('week', settings.weekStart)
-  const weekTotal =
-    entries
-      ?.filter((e) => e.start >= start && e.start <= end)
-      .reduce((sum, e) => sum + (e.stop - e.start), 0) ?? 0
+  const entries = useEntriesRange(start, end)
+  const weekTotal = entries?.reduce((sum, e) => sum + (e.stop - e.start), 0) ?? 0
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-ink-700 bg-ink-950/70">

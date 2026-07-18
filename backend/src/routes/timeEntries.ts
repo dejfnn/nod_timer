@@ -16,17 +16,38 @@ const EntryInput = z.object({
   stop: z.number(),
 })
 
-// GET /api/entries?from=<ms>&to=<ms>  — range is optional (returns all if omitted)
+// GET /api/entries?from=<ms>&to=<ms>&limit=<n>&beforeStart=<ms>&beforeId=<id>
+// Range and keyset cursor are optional (returns all if omitted). The cursor is
+// a (start, id) pair so pagination survives deletion of the boundary entry.
 app.get('/', async (c) => {
   const from = c.req.query('from')
   const to = c.req.query('to')
+  const limit = c.req.query('limit')
+  const beforeStart = c.req.query('beforeStart')
+  const beforeId = c.req.query('beforeId')
+
   const where: Prisma.TimeEntryWhereInput = { userId: c.get('userId') }
   if (from || to) {
     where.start = {}
     if (from) (where.start as Prisma.BigIntFilter).gte = BigInt(from)
     if (to) (where.start as Prisma.BigIntFilter).lt = BigInt(to)
   }
-  const entries = await prisma.timeEntry.findMany({ where, orderBy: { start: 'desc' } })
+  if (beforeStart) {
+    const bs = BigInt(beforeStart)
+    where.AND = [
+      {
+        OR: beforeId
+          ? [{ start: { lt: bs } }, { start: bs, id: { lt: beforeId } }]
+          : [{ start: { lt: bs } }],
+      },
+    ]
+  }
+
+  const entries = await prisma.timeEntry.findMany({
+    where,
+    orderBy: [{ start: 'desc' }, { id: 'desc' }],
+    ...(limit ? { take: Math.min(Number(limit), 500) } : {}),
+  })
   return c.json(entries)
 })
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useEntries, useProjects } from '@/hooks/queries'
+import { useEntriesRange, useProjects } from '@/hooks/queries'
 import { createEntry } from '@/db/actions'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { Icon } from '@/components/Icon'
@@ -78,12 +78,8 @@ export const CalendarPage = () => {
     [weekStartTs],
   )
 
-  const allEntries = useEntries()
-  const entries = useMemo(
-    () =>
-      (allEntries ?? []).filter((e) => e.start >= weekStartTs - DAY && e.start <= weekEndTs),
-    [allEntries, weekStartTs, weekEndTs],
-  )
+  // Fetch one extra day before the week so overnight entries still render.
+  const entries = useEntriesRange(weekStartTs - DAY, weekEndTs) ?? []
   const projects = useProjects() ?? []
 
   useEffect(() => {

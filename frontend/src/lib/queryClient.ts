@@ -15,7 +15,10 @@ export const qk = {
   clients: ['clients'] as const,
   projects: ['projects'] as const,
   tags: ['tags'] as const,
+  /** Root key — invalidating it covers every range/infinite entries query. */
   entries: ['entries'] as const,
+  entriesRange: (from: number, to: number) => ['entries', 'range', from, to] as const,
+  entriesInfinite: ['entries', 'infinite'] as const,
   running: ['running'] as const,
   settings: ['settings'] as const,
 }

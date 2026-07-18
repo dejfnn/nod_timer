@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useClients, useProjects, useEntries } from '@/hooks/queries'
+import { useClients, useProjects, useProjectStats } from '@/hooks/queries'
 import { createProject, updateProject, deleteProject } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 import { Modal } from '@/components/Modal'
@@ -27,16 +27,12 @@ export const ProjectsPage = () => {
 
   const projects = (useProjects() ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))
   const clients = (useClients() ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))
-  const entries = useEntries() ?? []
+  const projectStats = useProjectStats()
 
-  const trackedMs = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const e of entries) {
-      if (!e.projectId) continue
-      map.set(e.projectId, (map.get(e.projectId) ?? 0) + (e.stop - e.start))
-    }
-    return map
-  }, [entries])
+  const trackedMs = useMemo(
+    () => new Map((projectStats ?? []).map((s) => [s.projectId, s.ms])),
+    [projectStats],
+  )
 
   const visible = projects.filter((p) => showArchived || !p.archived)
   const archivedCount = projects.filter((p) => p.archived).length

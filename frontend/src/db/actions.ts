@@ -18,38 +18,72 @@ import type { Client, Project, RunningEntry, Settings, Tag, TimeEntry } from '@/
 const invalidate = (...keys: ReadonlyArray<readonly string[]>) =>
   Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 
+/** Entries live in plain range queries and in the infinite query (pages). */
+type EntriesCache = TimeEntry[] | { pages: TimeEntry[][]; pageParams: unknown[] }
+
+/** Optimistically rewrite every cached entries query (range + infinite). */
+function patchEntriesCache(map: (entries: TimeEntry[]) => TimeEntry[]): void {
+  queryClient.setQueriesData<EntriesCache>({ queryKey: qk.entries }, (old) => {
+    if (!old) return old
+    if (Array.isArray(old)) return map(old)
+    return { ...old, pages: old.pages.map(map) }
+  })
+}
+
 export type TimerFields = Pick<RunningEntry, 'description' | 'projectId' | 'tagIds' | 'billable'>
 
 // ---- Timer ----------------------------------------------------------------
+// Timer actions apply an optimistic cache update first so the UI reacts
+// instantly; the `finally` invalidation restores server truth on success
+// and on error alike.
 
 export async function startTimer(fields: Partial<TimerFields> = {}): Promise<void> {
-  await runningApi.start({
+  const optimistic: RunningEntry = {
+    id: 'optimistic',
     description: fields.description ?? '',
     projectId: fields.projectId ?? null,
     tagIds: fields.tagIds ?? [],
     billable: fields.billable ?? false,
     start: Date.now(),
-  })
-  await invalidate(qk.running)
+  }
+  queryClient.setQueryData<RunningEntry | null>(qk.running, optimistic)
+  const { id: _id, ...payload } = optimistic
+  try {
+    await runningApi.start(payload)
+  } finally {
+    await invalidate(qk.running)
+  }
 }
 
 export async function stopTimer(): Promise<void> {
+  queryClient.setQueryData<RunningEntry | null>(qk.running, null)
   try {
     await runningApi.stop(Date.now())
   } catch (e) {
     if (!(e instanceof ApiError && e.status === 404)) throw e // no running timer is fine
+  } finally {
+    await invalidate(qk.running, qk.entries)
   }
-  await invalidate(qk.running, qk.entries)
 }
 
 export async function discardTimer(): Promise<void> {
-  await runningApi.discard()
-  await invalidate(qk.running)
+  queryClient.setQueryData<RunningEntry | null>(qk.running, null)
+  try {
+    await runningApi.discard()
+  } finally {
+    await invalidate(qk.running)
+  }
 }
 
 export async function updateRunning(fields: RunningInput): Promise<void> {
-  await runningApi.update(fields)
-  await invalidate(qk.running)
+  queryClient.setQueryData<RunningEntry | null>(qk.running, (old) =>
+    old ? { ...old, ...fields } : old,
+  )
+  try {
+    await runningApi.update(fields)
+  } finally {
+    await invalidate(qk.running)
+  }
 }
 
 export async function continueEntry(entry: TimeEntry): Promise<void> {
@@ -71,13 +105,21 @@ export async function createEntry(data: EntryInput): Promise<TimeEntry> {
 }
 
 export async function updateEntry(id: string, data: Partial<EntryInput>): Promise<void> {
-  await entriesApi.update(id, data)
-  await invalidate(qk.entries)
+  patchEntriesCache((entries) => entries.map((e) => (e.id === id ? { ...e, ...data } : e)))
+  try {
+    await entriesApi.update(id, data)
+  } finally {
+    await invalidate(qk.entries)
+  }
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  await entriesApi.remove(id)
-  await invalidate(qk.entries)
+  patchEntriesCache((entries) => entries.filter((e) => e.id !== id))
+  try {
+    await entriesApi.remove(id)
+  } finally {
+    await invalidate(qk.entries)
+  }
 }
 
 // ---- Projects -------------------------------------------------------------

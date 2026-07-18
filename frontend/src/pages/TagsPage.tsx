@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useTags, useEntries } from '@/hooks/queries'
+import { useTags, useTagStats } from '@/hooks/queries'
 import { createTag, updateTag, deleteTag } from '@/db/actions'
 import { Icon } from '@/components/Icon'
 
@@ -9,9 +9,9 @@ export const TagsPage = () => {
   const [editName, setEditName] = useState('')
 
   const tags = useTags() ?? []
-  const entries = useEntries() ?? []
+  const tagStats = useTagStats()
 
-  const usage = (tagId: string) => entries.filter((e) => e.tagIds.includes(tagId)).length
+  const usage = (tagId: string) => tagStats?.find((s) => s.tagId === tagId)?.count ?? 0
 
   const add = async () => {
     const trimmed = name.trim()

@@ -16,6 +16,16 @@ app.get('/', async (c) => {
   return c.json(tags)
 })
 
+// GET /api/tags/stats — number of entries using each tag (all time)
+app.get('/stats', async (c) => {
+  const rows = await prisma.$queryRaw<{ tagId: string; count: number }[]>`
+    SELECT t.tag AS "tagId", COUNT(*)::int AS count
+    FROM "TimeEntry", unnest("tagIds") AS t(tag)
+    WHERE "userId" = ${c.get('userId')}
+    GROUP BY t.tag`
+  return c.json(rows)
+})
+
 app.post('/', async (c) => {
   const body = TagInput.parse(await c.req.json())
   const tag = await prisma.tag.create({ data: { ...body, userId: c.get('userId') } })

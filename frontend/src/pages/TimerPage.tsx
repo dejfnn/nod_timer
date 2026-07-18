@@ -1,37 +1,28 @@
 import { useMemo, useState } from 'react'
-import { useClients, useEntries, useProjects, useTags } from '@/hooks/queries'
+import { useClients, useInfiniteEntries, useProjects, useTags } from '@/hooks/queries'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { EntryRow } from '@/components/EntryRow'
 import { useSettings } from '@/hooks/useSettings'
 import type { TimeEntry } from '@/types'
 import { fmtDayLabel, fmtDuration, startOfDay } from '@/utils/time'
 
-const PAGE_SIZE = 60
-
 export const TimerPage = () => {
-  const [limit, setLimit] = useState(PAGE_SIZE)
   const [editing, setEditing] = useState<TimeEntry | null>(null)
   const settings = useSettings()
 
-  const allEntries = useEntries()
-  // useEntries() returns ALL entries sorted start DESC; apply the same
-  // `limit + 1` window the former Dexie query used (extra row = "has more").
-  const entries = useMemo(() => allEntries?.slice(0, limit + 1), [allEntries, limit])
+  const { entries, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteEntries()
   const projects = useProjects() ?? []
   const clients = useClients() ?? []
   const tags = useTags() ?? []
 
-  const hasMore = (entries?.length ?? 0) > limit
-  const visible = entries?.slice(0, limit) ?? []
-
   const groups = useMemo(() => {
     const map = new Map<number, TimeEntry[]>()
-    for (const e of visible) {
+    for (const e of entries ?? []) {
       const day = startOfDay(e.start)
       map.set(day, [...(map.get(day) ?? []), e])
     }
     return [...map.entries()]
-  }, [visible])
+  }, [entries])
 
   if (!entries) return null
 
@@ -78,10 +69,14 @@ export const TimerPage = () => {
         })}
       </div>
 
-      {hasMore && (
+      {hasNextPage && (
         <div className="flex justify-center py-6">
-          <button className="btn-ghost" onClick={() => setLimit((l) => l + PAGE_SIZE)}>
-            Load more
+          <button
+            className="btn-ghost"
+            disabled={isFetchingNextPage}
+            onClick={() => void fetchNextPage()}
+          >
+            {isFetchingNextPage ? 'Loading…' : 'Load more'}
           </button>
         </div>
       )}
