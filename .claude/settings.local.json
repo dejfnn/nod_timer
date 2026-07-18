@@ -34,7 +34,29 @@
       "Bash(git:*)",
       "Bash(pip install:*)",
       "Bash(gh pr:*)",
-      "Bash(mv pages:*)"
+      "Bash(mv pages:*)",
+      "WebSearch",
+      "Bash(npx create-expo-app@latest:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(python3:*)",
+      "Bash(npx jest:*)",
+      "Bash(ls:*)",
+      "Bash(npx expo:*)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(rm:*)",
+      "Bash(npm show:*)",
+      "WebFetch(domain:expo.dev)",
+      "Bash(npx:*)",
+      "Bash(node_modules/.bin/expo:*)",
+      "Bash(netstat:*)",
+      "PowerShell(railway status *)",
+      "PowerShell(railway list *)",
+      "PowerShell(railway link *)",
+      "PowerShell(git push *)",
+      "Bash(git push:*)"
     ]
   }
 }

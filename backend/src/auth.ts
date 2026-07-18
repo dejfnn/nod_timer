@@ -2,6 +2,11 @@ import { createMiddleware } from 'hono/factory'
 import { sign, verify } from 'hono/jwt'
 import bcrypt from 'bcryptjs'
 
+const isProduction =
+  process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
+if (!process.env.JWT_SECRET && isProduction) {
+  throw new Error('JWT_SECRET must be set in production')
+}
 const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me'
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 

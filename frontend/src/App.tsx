@@ -5,6 +5,7 @@ import { qk, queryClient } from '@/lib/queryClient'
 import { useAuth } from '@/auth/AuthContext'
 import { Sidebar } from '@/components/Sidebar'
 import { TimerBar, FOCUS_TIMER_EVENT } from '@/components/TimerBar'
+import { Toasts } from '@/components/Toasts'
 import { AuthPage } from '@/pages/AuthPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { ClientsPage } from '@/pages/ClientsPage'
@@ -46,7 +47,12 @@ export const App = () => {
   }
 
   if (!user) {
-    return <AuthPage />
+    return (
+      <>
+        <AuthPage />
+        <Toasts />
+      </>
+    )
   }
 
   return (
@@ -69,6 +75,7 @@ export const App = () => {
           </main>
         </div>
       </div>
+      <Toasts />
     </BrowserRouter>
   )
 }

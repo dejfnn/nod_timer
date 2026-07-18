@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '@/auth/AuthContext'
 import { useEntries } from '@/hooks/queries'
 import { Icon, type IconName } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
@@ -15,6 +16,7 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
 ]
 
 export const Sidebar = () => {
+  const { user, logout } = useAuth()
   const settings = useSettings()
   const entries = useEntries()
   const { start, end } = getRange('week', settings.weekStart)
@@ -65,6 +67,15 @@ export const Sidebar = () => {
         <div className="mt-1 font-mono text-lg text-paper-50 tabular-nums">
           {fmtDuration(weekTotal)}
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 border-t border-ink-700/60 px-5 py-3">
+        <span className="min-w-0 flex-1 truncate text-xs text-mist-400" title={user?.email}>
+          {user?.email}
+        </span>
+        <button className="icon-btn" onClick={logout} title="Sign out">
+          <Icon name="logout" size={15} />
+        </button>
       </div>
 
       <div className="px-5 pb-4 text-[10px] text-mist-500">

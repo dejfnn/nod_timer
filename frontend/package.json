@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "start": "serve -s dist -l 8080",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.2.5",
@@ -29,6 +30,7 @@
     "playwright": "^1.60.0",
     "tailwindcss": "^4.1.10",
     "typescript": "~5.9.3",
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "vitest": "^4.1.10"
   }
 }

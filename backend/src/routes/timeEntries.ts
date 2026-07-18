@@ -32,6 +32,7 @@ app.get('/', async (c) => {
 
 app.post('/', async (c) => {
   const body = EntryInput.parse(await c.req.json())
+  if (body.stop < body.start) return c.json({ error: 'stop must not be before start' }, 400)
   const entry = await prisma.timeEntry.create({
     data: {
       userId: c.get('userId'),
@@ -49,6 +50,16 @@ app.post('/', async (c) => {
 app.patch('/:id', async (c) => {
   const id = c.req.param('id')
   const body = EntryInput.partial().parse(await c.req.json())
+  if (body.start !== undefined || body.stop !== undefined) {
+    const existing = await prisma.timeEntry.findFirst({
+      where: { id, userId: c.get('userId') },
+      select: { start: true, stop: true },
+    })
+    if (!existing) return c.json({ error: 'Not found' }, 404)
+    const start = body.start ?? Number(existing.start)
+    const stop = body.stop ?? Number(existing.stop)
+    if (stop < start) return c.json({ error: 'stop must not be before start' }, 400)
+  }
   const data: Prisma.TimeEntryUncheckedUpdateManyInput = {}
   if (body.description !== undefined) data.description = body.description
   if (body.projectId !== undefined) data.projectId = body.projectId

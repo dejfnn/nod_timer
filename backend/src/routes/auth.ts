@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../db'
 import { authMiddleware, createToken, hashPassword, verifyPassword, type AuthEnv } from '../auth'
+import { rateLimit } from '../rateLimit'
 
 const app = new Hono()
 
@@ -9,6 +10,11 @@ const Credentials = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 })
+
+// Brute-force protection: 10 attempts per 15 minutes per IP for each endpoint.
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 })
+app.use('/register', authLimiter)
+app.use('/login', authLimiter)
 
 app.post('/register', async (c) => {
   const { email, password } = Credentials.parse(await c.req.json())

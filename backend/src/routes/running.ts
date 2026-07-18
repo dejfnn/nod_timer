@@ -62,6 +62,8 @@ app.post('/stop', async (c) => {
   const entry = await prisma.$transaction(async (tx) => {
     const running = await tx.runningEntry.findUnique({ where: { userId } })
     if (!running) return null
+    // Never persist a negative duration, even with a client-supplied stop.
+    const stop = Math.max(body.stop ?? Date.now(), Number(running.start))
     const created = await tx.timeEntry.create({
       data: {
         userId,
@@ -70,7 +72,7 @@ app.post('/stop', async (c) => {
         tagIds: running.tagIds,
         billable: running.billable,
         start: running.start,
-        stop: BigInt(body.stop ?? Date.now()),
+        stop: BigInt(stop),
       },
     })
     await tx.runningEntry.delete({ where: { userId } })

@@ -138,8 +138,8 @@ export const SettingsPage = () => {
           />
         </div>
         <p className="mt-3 text-xs text-mist-500">
-          All data lives locally in this browser (IndexedDB). Export a backup before clearing
-          browser data or switching machines.
+          Your data is stored on the TimeFlow server under your account. Export a JSON backup any
+          time; importing one replaces all current data.
         </p>
       </section>
 

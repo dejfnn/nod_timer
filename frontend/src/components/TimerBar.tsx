@@ -13,6 +13,32 @@ export const TimerBar = () => {
   const running = useRunning()
   const now = useNow(running ? 500 : null)
 
+  // Local copy of the running description so typing stays smooth; changes are
+  // PATCHed after a short pause instead of on every keystroke.
+  const [runningDesc, setRunningDesc] = useState<string | null>(null)
+  const descTimeout = useRef<number | undefined>(undefined)
+  // Keyed by id AND start: replacing the timer (continue) reuses the same row.
+  const runningKey = running ? `${running.id}:${running.start}` : null
+  useEffect(() => {
+    setRunningDesc(null)
+    window.clearTimeout(descTimeout.current)
+  }, [runningKey])
+
+  const onRunningDescChange = (value: string) => {
+    setRunningDesc(value)
+    window.clearTimeout(descTimeout.current)
+    descTimeout.current = window.setTimeout(() => {
+      void updateRunning({ description: value })
+    }, 400)
+  }
+
+  const flushRunningDesc = async () => {
+    window.clearTimeout(descTimeout.current)
+    if (runningDesc !== null && runningDesc !== running?.description) {
+      await updateRunning({ description: runningDesc })
+    }
+  }
+
   const [description, setDescription] = useState('')
   const [projectId, setProjectId] = useState<string | null>(null)
   const [tagIds, setTagIds] = useState<string[]>([])
@@ -66,8 +92,9 @@ export const TimerBar = () => {
         {running ? (
           <>
             <input
-              value={running.description}
-              onChange={(e) => updateRunning({ description: e.target.value })}
+              value={runningDesc ?? running.description}
+              onChange={(e) => onRunningDescChange(e.target.value)}
+              onBlur={() => void flushRunningDesc()}
               placeholder="(no description)"
               className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-mist-500"
             />
@@ -91,7 +118,7 @@ export const TimerBar = () => {
               <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent-500/40" />
               <button
                 className="relative flex size-11 cursor-pointer items-center justify-center rounded-full bg-accent-500 text-ink-950 transition-colors hover:bg-accent-400"
-                onClick={() => void stopTimer()}
+                onClick={() => void flushRunningDesc().then(stopTimer)}
                 title="Stop timer (S)"
               >
                 <Icon name="stop" size={20} />
