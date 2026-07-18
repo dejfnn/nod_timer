@@ -1,6 +1,7 @@
 import { createMiddleware } from 'hono/factory'
 import { sign, verify } from 'hono/jwt'
 import bcrypt from 'bcryptjs'
+import { prisma } from './db'
 
 const isProduction =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
@@ -11,6 +12,10 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me'
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
 export type AuthEnv = { Variables: { userId: string } }
+
+export type WorkspaceEnv = {
+  Variables: { userId: string; workspaceId: string; workspaceRole: string }
+}
 
 export function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10)
@@ -24,6 +29,23 @@ export function createToken(userId: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   return sign({ sub: userId, iat: now, exp: now + TOKEN_TTL_SECONDS }, JWT_SECRET)
 }
+
+/**
+ * Resolves the active workspace from the X-Workspace-Id header (defaults to
+ * the user's personal workspace, whose id equals the user id) and verifies
+ * membership. Must run after authMiddleware.
+ */
+export const workspaceMiddleware = createMiddleware<WorkspaceEnv>(async (c, next) => {
+  const userId = c.get('userId')
+  const requested = c.req.header('X-Workspace-Id') ?? userId
+  const member = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: requested, userId } },
+  })
+  if (!member) return c.json({ error: 'Not a member of this workspace' }, 403)
+  c.set('workspaceId', requested)
+  c.set('workspaceRole', member.role)
+  await next()
+})
 
 /** Requires a valid Bearer token; exposes the user id via c.get('userId'). */
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {

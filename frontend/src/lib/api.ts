@@ -1,11 +1,19 @@
 const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
 
 const TOKEN_KEY = 'timeflow_token'
+const WORKSPACE_KEY = 'timeflow_workspace'
 
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (t: string) => localStorage.setItem(TOKEN_KEY, t),
   clear: () => localStorage.removeItem(TOKEN_KEY),
+}
+
+/** Active workspace; when unset the backend falls back to the personal one. */
+export const workspaceStore = {
+  get: () => localStorage.getItem(WORKSPACE_KEY),
+  set: (id: string) => localStorage.setItem(WORKSPACE_KEY, id),
+  clear: () => localStorage.removeItem(WORKSPACE_KEY),
 }
 
 export const UNAUTHORIZED_EVENT = 'timeflow:unauthorized'
@@ -24,6 +32,8 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   const token = tokenStore.get()
   if (token) headers.set('Authorization', `Bearer ${token}`)
+  const workspaceId = workspaceStore.get()
+  if (workspaceId) headers.set('X-Workspace-Id', workspaceId)
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers })
 

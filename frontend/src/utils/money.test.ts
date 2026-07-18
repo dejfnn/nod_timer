@@ -17,6 +17,7 @@ const projects: Project[] = [
 
 const entry = (over: Partial<TimeEntry>): TimeEntry => ({
   id: 'e',
+  userId: 'u',
   description: '',
   projectId: null,
   tagIds: [],

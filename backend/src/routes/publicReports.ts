@@ -13,7 +13,7 @@ const app = new Hono()
 const StoredParams = z.object({
   from: z.number(),
   to: z.number(),
-  groupBy: z.enum(['project', 'client', 'tag', 'description', 'day']),
+  groupBy: z.enum(['project', 'client', 'tag', 'description', 'day', 'member']),
   rounding: z.number(),
   roundingDir: z.enum(['nearest', 'up', 'down']),
   filter: z.enum(['all', 'billable', 'uninvoiced']).optional(),
@@ -30,20 +30,23 @@ app.get('/:token', async (c) => {
   const params = parsed.data
 
   const where: Prisma.TimeEntryWhereInput = {
-    userId: report.userId,
+    workspaceId: report.workspaceId,
     start: { gte: BigInt(params.from), lt: BigInt(params.to) },
   }
   const [entries, projects, clients, tags, settings] = await Promise.all([
     prisma.timeEntry.findMany({ where, orderBy: { start: 'asc' } }),
     prisma.project.findMany({
-      where: { userId: report.userId },
+      where: { workspaceId: report.workspaceId },
       select: { id: true, name: true, color: true, clientId: true, rate: true },
     }),
     prisma.client.findMany({
-      where: { userId: report.userId },
+      where: { workspaceId: report.workspaceId },
       select: { id: true, name: true },
     }),
-    prisma.tag.findMany({ where: { userId: report.userId }, select: { id: true, name: true } }),
+    prisma.tag.findMany({
+      where: { workspaceId: report.workspaceId },
+      select: { id: true, name: true },
+    }),
     prisma.settings.findUnique({ where: { userId: report.userId } }),
   ])
 

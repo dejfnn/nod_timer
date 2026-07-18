@@ -1,34 +1,35 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../db'
-import { authMiddleware, type AuthEnv } from '../auth'
+import { authMiddleware, workspaceMiddleware, type WorkspaceEnv } from '../auth'
 
-const app = new Hono<AuthEnv>()
+const app = new Hono<WorkspaceEnv>()
 app.use('*', authMiddleware)
+app.use('*', workspaceMiddleware)
 
 const TagInput = z.object({ name: z.string().min(1) })
 
 app.get('/', async (c) => {
   const tags = await prisma.tag.findMany({
-    where: { userId: c.get('userId') },
+    where: { workspaceId: c.get('workspaceId') },
     orderBy: { name: 'asc' },
   })
   return c.json(tags)
 })
 
-// GET /api/tags/stats — number of entries using each tag (all time)
+// GET /api/tags/stats — number of entries using each tag (all time, workspace-wide)
 app.get('/stats', async (c) => {
   const rows = await prisma.$queryRaw<{ tagId: string; count: number }[]>`
     SELECT t.tag AS "tagId", COUNT(*)::int AS count
     FROM "TimeEntry", unnest("tagIds") AS t(tag)
-    WHERE "userId" = ${c.get('userId')}
+    WHERE "workspaceId" = ${c.get('workspaceId')}
     GROUP BY t.tag`
   return c.json(rows)
 })
 
 app.post('/', async (c) => {
   const body = TagInput.parse(await c.req.json())
-  const tag = await prisma.tag.create({ data: { ...body, userId: c.get('userId') } })
+  const tag = await prisma.tag.create({ data: { ...body, workspaceId: c.get('workspaceId') } })
   return c.json(tag, 201)
 })
 
@@ -36,7 +37,7 @@ app.patch('/:id', async (c) => {
   const id = c.req.param('id')
   const body = TagInput.partial().parse(await c.req.json())
   const { count } = await prisma.tag.updateMany({
-    where: { id, userId: c.get('userId') },
+    where: { id, workspaceId: c.get('workspaceId') },
     data: body,
   })
   if (count === 0) return c.json({ error: 'Not found' }, 404)
@@ -45,11 +46,11 @@ app.patch('/:id', async (c) => {
 
 app.delete('/:id', async (c) => {
   const id = c.req.param('id')
-  const userId = c.get('userId')
-  // Mirror frontend deleteTag: remove this tag id from all entries and running.
+  const workspaceId = c.get('workspaceId')
+  // Remove the tag id from all entries and running timers in this workspace.
   await prisma.$transaction(async (tx) => {
     const entries = await tx.timeEntry.findMany({
-      where: { userId, tagIds: { has: id } },
+      where: { workspaceId, tagIds: { has: id } },
       select: { id: true, tagIds: true },
     })
     for (const e of entries) {
@@ -58,14 +59,16 @@ app.delete('/:id', async (c) => {
         data: { tagIds: e.tagIds.filter((t) => t !== id) },
       })
     }
-    const running = await tx.runningEntry.findUnique({ where: { userId } })
-    if (running?.tagIds.includes(id)) {
+    const running = await tx.runningEntry.findMany({
+      where: { workspaceId, tagIds: { has: id } },
+    })
+    for (const r of running) {
       await tx.runningEntry.update({
-        where: { userId },
-        data: { tagIds: running.tagIds.filter((t) => t !== id) },
+        where: { id: r.id },
+        data: { tagIds: r.tagIds.filter((t) => t !== id) },
       })
     }
-    await tx.tag.deleteMany({ where: { id, userId } })
+    await tx.tag.deleteMany({ where: { id, workspaceId } })
   })
   return c.json({ ok: true })
 })

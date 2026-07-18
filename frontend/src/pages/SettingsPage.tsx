@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@/components/Icon'
 import { Modal } from '@/components/Modal'
+import { useAuth } from '@/auth/AuthContext'
+import { useWorkspace } from '@/auth/WorkspaceContext'
 import { useSettings } from '@/hooks/useSettings'
 import { saveSettings } from '@/db/actions'
-import { dataApi } from '@/api/resources'
+import { dataApi, workspacesApi } from '@/api/resources'
 import { queryClient } from '@/lib/queryClient'
 import { DEFAULT_SETTINGS } from '@/lib/constants'
 import { showToast } from '@/lib/toast'
@@ -16,10 +19,64 @@ const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'CHF']
 
 export const SettingsPage = () => {
   const settings = useSettings()
+  const { user } = useAuth()
+  const { active, setActive } = useWorkspace()
   const fileRef = useRef<HTMLInputElement>(null)
   const togglFileRef = useRef<HTMLInputElement>(null)
   const [togglPreview, setTogglPreview] = useState<TogglParseResult | null>(null)
   const [togglBusy, setTogglBusy] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+
+  const isOwner = active?.role === 'owner'
+  const members =
+    useQuery({
+      queryKey: ['workspaces', active?.id, 'members'],
+      queryFn: () => workspacesApi.members(active!.id),
+      enabled: Boolean(active),
+    }).data ?? []
+  const pendingInvites =
+    useQuery({
+      queryKey: ['workspaces', active?.id, 'invites'],
+      queryFn: () => workspacesApi.invites(active!.id),
+      enabled: Boolean(active) && isOwner,
+    }).data ?? []
+
+  const refreshWorkspace = () =>
+    queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+
+  const renameWorkspace = async () => {
+    if (!active) return
+    const name = prompt('Workspace name:', active.name)
+    if (!name?.trim()) return
+    await workspacesApi.rename(active.id, name.trim())
+    await refreshWorkspace()
+  }
+
+  const createWorkspace = async () => {
+    const name = prompt('New workspace name:')
+    if (!name?.trim()) return
+    const ws = await workspacesApi.create(name.trim())
+    await refreshWorkspace()
+    setActive(ws.id)
+    showToast(`Workspace “${ws.name}” created.`, 'success')
+  }
+
+  const inviteMember = async () => {
+    if (!active || !inviteEmail.trim()) return
+    await workspacesApi.invite(active.id, inviteEmail.trim())
+    setInviteEmail('')
+    await refreshWorkspace()
+    showToast('Invitation sent — they will see it after signing in.', 'success')
+  }
+
+  const removeMember = async (userId: string, email: string) => {
+    if (!active) return
+    const leaving = userId === user?.id
+    if (!confirm(leaving ? `Leave workspace “${active.name}”?` : `Remove ${email}?`)) return
+    await workspacesApi.removeMember(active.id, userId)
+    if (leaving) setActive(user!.id)
+    await refreshWorkspace()
+  }
 
   const update = (patch: Partial<Settings>) =>
     void saveSettings({ ...DEFAULT_SETTINGS, ...settings, ...patch })
@@ -167,6 +224,84 @@ export const SettingsPage = () => {
         </div>
         <p className="mt-3 text-xs text-mist-500">
           The default hourly rate applies to billable entries on projects without their own rate.
+        </p>
+      </section>
+
+      <section className="card p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <h3 className="display text-[11px] text-mist-300">Workspace</h3>
+          <span className="text-xs text-paper-50">{active?.name}</span>
+          {isOwner && (
+            <button className="text-xs text-mist-500 underline-offset-2 hover:underline" onClick={() => void renameWorkspace()}>
+              Rename
+            </button>
+          )}
+          <button
+            className="ml-auto text-xs text-mist-500 underline-offset-2 hover:underline"
+            onClick={() => void createWorkspace()}
+          >
+            + New workspace
+          </button>
+        </div>
+
+        <div className="divide-y divide-ink-700/60">
+          {members.map((m) => (
+            <div key={m.userId} className="flex items-center gap-3 py-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-paper-50">{m.email}</span>
+              <span className="text-[10px] tracking-wider text-mist-500 uppercase">{m.role}</span>
+              {(isOwner || m.userId === user?.id) && m.userId !== active?.id && (
+                <button
+                  className="icon-btn hover:text-danger-500"
+                  title={m.userId === user?.id ? 'Leave workspace' : 'Remove member'}
+                  onClick={() => void removeMember(m.userId, m.email)}
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              )}
+            </div>
+          ))}
+          {pendingInvites.map((i) => (
+            <div key={i.id} className="flex items-center gap-3 py-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-mist-400">{i.email}</span>
+              <span className="text-[10px] tracking-wider text-mist-500 uppercase">invited</span>
+              <button
+                className="icon-btn hover:text-danger-500"
+                title="Revoke invitation"
+                onClick={() =>
+                  void workspacesApi
+                    .revokeInvite(active!.id, i.id)
+                    .then(() =>
+                      queryClient.invalidateQueries({ queryKey: ['workspaces', active?.id, 'invites'] }),
+                    )
+                }
+              >
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {isOwner && (
+          <div className="mt-3 flex gap-2">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void inviteMember()
+              }}
+              placeholder="colleague@example.com"
+              className="field flex-1"
+            />
+            <button className="btn-ghost" onClick={() => void inviteMember()} disabled={!inviteEmail.trim()}>
+              <Icon name="plus" size={15} />
+              Invite
+            </button>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-mist-500">
+          Members share this workspace&apos;s clients, projects, tags and time entries. Members can
+          edit their own entries; owners can edit everything.
         </p>
       </section>
 

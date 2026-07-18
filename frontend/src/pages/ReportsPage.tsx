@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { entriesApi, reportsApi } from '@/api/resources'
+import { entriesApi, reportsApi, workspacesApi } from '@/api/resources'
+import { useWorkspace } from '@/auth/WorkspaceContext'
 import { useClients, useEntriesRange, useProjects, useTags } from '@/hooks/queries'
 import { BarChart } from '@/components/charts/BarChart'
 import { DonutChart } from '@/components/charts/DonutChart'
@@ -77,7 +78,8 @@ export const ReportsPage = () => {
     return { start, end: Math.max(end, start + DAY) }
   }, [preset, customStart, customEnd, settings.weekStart])
 
-  const rangeEntries = useEntriesRange(range.start, range.end)
+  // reports cover the whole workspace, not just the signed-in member
+  const rangeEntries = useEntriesRange(range.start, range.end, 'all')
   const entries = useMemo(
     () =>
       filterReportEntries(
@@ -90,14 +92,32 @@ export const ReportsPage = () => {
   const clients = useClients() ?? []
   const tags = useTags() ?? []
 
+  const { active } = useWorkspace()
+  const isTeam = (active?.memberCount ?? 1) > 1
+  const members =
+    useQuery({
+      queryKey: ['workspaces', active?.id, 'members'],
+      queryFn: () => workspacesApi.members(active!.id),
+      enabled: Boolean(active) && isTeam,
+    }).data ?? []
+
   const savedReports = useQuery({ queryKey: ['reports'], queryFn: reportsApi.list }).data ?? []
 
   const dur = (e: TimeEntry) => roundDurationMs(e.stop - e.start, rounding, roundingDir)
 
   const report = useMemo(
-    () => buildReport(entries, { groupBy, rounding, roundingDir }, projects, clients, tags, settings),
+    () =>
+      buildReport(
+        entries,
+        { groupBy, rounding, roundingDir },
+        projects,
+        clients,
+        tags,
+        settings,
+        members.map((m) => ({ id: m.userId, label: m.email })),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [entries, groupBy, rounding, roundingDir, projects, clients, tags, settings],
+    [entries, groupBy, rounding, roundingDir, projects, clients, tags, settings, members],
   )
 
   // bar chart buckets: daily, or monthly for long ranges (actual, un-rounded time)
@@ -318,6 +338,7 @@ export const ReportsPage = () => {
               {g.label}
             </option>
           ))}
+          {isTeam && <option value="member">Member</option>}
         </select>
         <span className="ml-3 text-mist-500">Rounding</span>
         <select

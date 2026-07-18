@@ -3,7 +3,7 @@ import { PROJECT_COLORS } from '@/utils/colors'
 import { amountForMs } from '@/utils/money'
 import { fmtDayLabel, roundDurationMs, startOfDay, type RoundingDir } from '@/utils/time'
 
-export type GroupKey = 'project' | 'client' | 'tag' | 'description' | 'day'
+export type GroupKey = 'project' | 'client' | 'tag' | 'description' | 'day' | 'member'
 export type ReportFilter = 'all' | 'billable' | 'uninvoiced'
 
 export interface ReportParams {
@@ -49,6 +49,8 @@ export function buildReport(
   clients: Client[],
   tags: Tag[],
   settings: ReportSettings,
+  /** workspace members for the 'member' grouping (id → display label) */
+  members: { id: string; label: string }[] = [],
 ): ReportResult {
   const dur = (e: TimeEntry) => roundDurationMs(e.stop - e.start, params.rounding, params.roundingDir)
 
@@ -80,6 +82,10 @@ export function buildReport(
       case 'day': {
         const day = startOfDay(e.start)
         return [{ id: String(day), label: fmtDayLabel(day), color: null, sortKey: day }]
+      }
+      case 'member': {
+        const member = members.find((m) => m.id === e.userId)
+        return [{ id: e.userId, label: member?.label ?? 'Unknown member', color: null, sortKey: 0 }]
       }
     }
   }

@@ -19,6 +19,8 @@ import settingsRoutes from './routes/settings'
 import dataRoutes from './routes/data'
 import reportsRoutes from './routes/reports'
 import publicReportsRoutes from './routes/publicReports'
+import workspacesRoutes from './routes/workspaces'
+import invitesRoutes from './routes/invites'
 
 const app = new Hono()
 
@@ -31,7 +33,7 @@ app.use(
   cors({
     origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Workspace-Id'],
   }),
 )
 
@@ -48,6 +50,8 @@ app.route('/api/settings', settingsRoutes)
 app.route('/api/data', dataRoutes)
 app.route('/api/reports', reportsRoutes)
 app.route('/public/reports', publicReportsRoutes)
+app.route('/api/workspaces', workspacesRoutes)
+app.route('/api/invites', invitesRoutes)
 
 app.onError((err, c) => {
   if (err instanceof ZodError) {

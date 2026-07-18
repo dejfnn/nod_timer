@@ -1,8 +1,13 @@
 import { NavLink } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { invitesApi } from '@/api/resources'
 import { useAuth } from '@/auth/AuthContext'
+import { useWorkspace } from '@/auth/WorkspaceContext'
 import { useEntriesRange } from '@/hooks/queries'
 import { Icon, type IconName } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
+import { queryClient } from '@/lib/queryClient'
+import { showToast } from '@/lib/toast'
 import { fmtDuration, getRange } from '@/utils/time'
 
 const NAV: { to: string; label: string; icon: IconName }[] = [
@@ -17,10 +22,21 @@ const NAV: { to: string; label: string; icon: IconName }[] = [
 
 export const Sidebar = () => {
   const { user, logout } = useAuth()
+  const { workspaces, active, setActive } = useWorkspace()
   const settings = useSettings()
   const { start, end } = getRange('week', settings.weekStart)
   const entries = useEntriesRange(start, end)
   const weekTotal = entries?.reduce((sum, e) => sum + (e.stop - e.start), 0) ?? 0
+
+  const invites = useQuery({ queryKey: ['invites'], queryFn: invitesApi.mine }).data ?? []
+
+  const acceptInvite = async (id: string) => {
+    const res = await invitesApi.accept(id)
+    await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+    await queryClient.invalidateQueries({ queryKey: ['invites'] })
+    showToast('Invitation accepted.', 'success')
+    setActive(res.workspaceId)
+  }
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-ink-700 bg-ink-950/70">
@@ -36,6 +52,53 @@ export const Sidebar = () => {
           </div>
         </div>
       </div>
+
+      {(workspaces.length > 1 || invites.length > 0) && (
+        <div className="mx-3 mb-3 space-y-2">
+          {workspaces.length > 1 && (
+            <select
+              value={active?.id ?? ''}
+              onChange={(e) => setActive(e.target.value)}
+              className="field h-8 w-full px-2 text-xs"
+              title="Workspace"
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {invites.map((invite) => (
+            <div
+              key={invite.id}
+              className="rounded-md border border-accent-500/40 bg-accent-500/10 px-3 py-2 text-xs"
+            >
+              <div className="mb-1.5 text-paper-300">
+                Invited to <span className="text-paper-50">{invite.workspaceName}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="cursor-pointer text-accent-400 hover:text-accent-500"
+                  onClick={() => void acceptInvite(invite.id)}
+                >
+                  Accept
+                </button>
+                <button
+                  className="cursor-pointer text-mist-500 hover:text-paper-300"
+                  onClick={() =>
+                    void invitesApi
+                      .decline(invite.id)
+                      .then(() => queryClient.invalidateQueries({ queryKey: ['invites'] }))
+                  }
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map(({ to, label, icon }) => (

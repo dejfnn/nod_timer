@@ -1,6 +1,7 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api'
 import type {
   Client,
+  PendingInvite,
   Project,
   RunningEntry,
   SavedReport,
@@ -8,6 +9,8 @@ import type {
   Tag,
   TimeEntry,
   User,
+  Workspace,
+  WorkspaceMemberInfo,
 } from '@/types'
 
 export type AuthResponse = { token: string; user: User }
@@ -44,13 +47,17 @@ export const tagsApi = {
   remove: (id: string) => apiDelete<{ ok: true }>(`/api/tags/${id}`),
 }
 
-export type EntryInput = Omit<TimeEntry, 'id' | 'invoicedAt'> & { invoicedAt?: number | null }
+export type EntryInput = Omit<TimeEntry, 'id' | 'userId' | 'invoicedAt'> & {
+  invoicedAt?: number | null
+}
 export interface EntriesQuery {
   from?: number
   to?: number
   limit?: number
   beforeStart?: number
   beforeId?: string
+  /** 'mine' (default) or 'all' — whole-workspace entries for reports */
+  scope?: 'mine' | 'all'
 }
 export const entriesApi = {
   list: (params: EntriesQuery = {}) => {
@@ -117,6 +124,27 @@ export const statsApi = {
 export const settingsApi = {
   get: () => apiGet<Settings>('/api/settings'),
   update: (data: Partial<Settings>) => apiPut<Settings>('/api/settings', data),
+}
+
+export const workspacesApi = {
+  list: () => apiGet<Workspace[]>('/api/workspaces'),
+  create: (name: string) => apiPost<Workspace>('/api/workspaces', { name }),
+  rename: (id: string, name: string) => apiPatch<{ ok: true }>(`/api/workspaces/${id}`, { name }),
+  members: (id: string) => apiGet<WorkspaceMemberInfo[]>(`/api/workspaces/${id}/members`),
+  removeMember: (id: string, userId: string) =>
+    apiDelete<{ ok: true }>(`/api/workspaces/${id}/members/${userId}`),
+  invite: (id: string, email: string) =>
+    apiPost<{ id: string; email: string }>(`/api/workspaces/${id}/invites`, { email }),
+  invites: (id: string) =>
+    apiGet<{ id: string; email: string }[]>(`/api/workspaces/${id}/invites`),
+  revokeInvite: (id: string, inviteId: string) =>
+    apiDelete<{ ok: true }>(`/api/workspaces/${id}/invites/${inviteId}`),
+}
+
+export const invitesApi = {
+  mine: () => apiGet<PendingInvite[]>('/api/invites'),
+  accept: (id: string) => apiPost<{ ok: true; workspaceId: string }>(`/api/invites/${id}/accept`),
+  decline: (id: string) => apiDelete<{ ok: true }>(`/api/invites/${id}`),
 }
 
 export type ExportData = {

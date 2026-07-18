@@ -91,8 +91,8 @@ export async function continueEntry(entry: TimeEntry): Promise<void> {
 }
 
 export async function duplicateEntry(entry: TimeEntry): Promise<void> {
-  // the copy starts life uninvoiced
-  const { id: _id, invoicedAt: _inv, ...rest } = entry
+  // the copy starts life uninvoiced and belongs to the current user
+  const { id: _id, invoicedAt: _inv, userId: _user, ...rest } = entry
   await entriesApi.create(rest)
   await invalidate(qk.entries)
 }

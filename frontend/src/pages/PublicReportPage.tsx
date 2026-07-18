@@ -20,10 +20,17 @@ export const PublicReportPage = () => {
   const report = useMemo(() => {
     if (!data) return null
     const entries = filterReportEntries(data.entries, data.params.filter ?? 'all')
-    return buildReport(entries, data.params, data.projects, data.clients, data.tags, {
-      currency: data.currency,
-      defaultRate: data.defaultRate,
-    })
+    // member identities stay private on public links — label by stable index
+    const memberIds = [...new Set(entries.map((e) => e.userId))].sort()
+    return buildReport(
+      entries,
+      data.params,
+      data.projects,
+      data.clients,
+      data.tags,
+      { currency: data.currency, defaultRate: data.defaultRate },
+      memberIds.map((id, i) => ({ id, label: `Member ${i + 1}` })),
+    )
   }, [data])
 
   if (isLoading) {

@@ -1,5 +1,6 @@
-// TimeFlow data model — mirrors the former Dexie/IndexedDB schema (frontend
-// src/types.ts), with a per-user owner added for multi-user support.
+// TimeFlow data model. Clients/projects/tags belong to a workspace; time
+// entries also record the member who tracked them. Every user has a personal
+// workspace whose id equals their user id (created at registration).
 
 generator client {
   provider = "prisma-client-js"
@@ -16,63 +17,102 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  clients      Client[]
-  projects     Project[]
-  tags         Tag[]
   timeEntries  TimeEntry[]
   running      RunningEntry?
   settings     Settings?
   savedReports SavedReport[]
+  memberships  WorkspaceMember[]
 }
 
-model Client {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
 
-  projects Project[]
+  members      WorkspaceMember[]
+  invites      WorkspaceInvite[]
+  clients      Client[]
+  projects     Project[]
+  tags         Tag[]
+  timeEntries  TimeEntry[]
+  savedReports SavedReport[]
+}
 
+model WorkspaceMember {
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** 'owner' | 'member' */
+  role        String    @default("member")
+  createdAt   DateTime  @default(now())
+
+  @@id([workspaceId, userId])
   @@index([userId])
 }
 
+model WorkspaceInvite {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email       String
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, email])
+  @@index([email])
+}
+
+model Client {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+
+  projects Project[]
+
+  @@index([workspaceId])
+}
+
 model Project {
-  id       String  @id @default(uuid())
-  userId   String
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name     String
-  color    String
-  clientId String?
-  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  rate     Float?
-  archived Boolean @default(false)
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  color       String
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  rate        Float?
+  archived    Boolean   @default(false)
   /** time estimate in hours; null = no estimate */
   estimateHours Float?
 
   timeEntries TimeEntry[]
 
-  @@index([userId])
+  @@index([workspaceId])
   @@index([clientId])
 }
 
 model Tag {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name   String
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
 
-  @@index([userId])
+  @@index([workspaceId])
 }
 
 model TimeEntry {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /** the member who tracked this entry */
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  description String   @default("")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description String    @default("")
   projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   tagIds      String[]
-  billable    Boolean  @default(false)
+  billable    Boolean   @default(false)
   start       BigInt
   stop        BigInt
   /** ms timestamp when the entry was marked invoiced; null = not invoiced */
@@ -80,30 +120,18 @@ model TimeEntry {
 
   @@index([userId])
   @@index([userId, start])
+  @@index([workspaceId, start])
   @@index([projectId])
 }
 
-// A saved report configuration; shareToken (when set) exposes it read-only
-// at /public/reports/:token without authentication.
-model SavedReport {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  params     Json
-  shareToken String?  @unique
-  createdAt  DateTime @default(now())
-
-  @@index([userId])
-}
-
-// At most one running timer per user (userId is unique). projectId is kept as a
-// plain field (no FK) so deleting a project just nulls it via app logic, mirroring
-// the frontend's actions.ts behaviour.
+// At most one running timer per user (userId is unique). workspaceId records
+// which workspace the timer was started in. projectId is a plain field (no FK)
+// so deleting a project just nulls it via app logic.
 model RunningEntry {
   id          String   @id @default(uuid())
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
   description String   @default("")
   projectId   String?
   tagIds      String[]
@@ -121,4 +149,20 @@ model Settings {
   hourFormat  String @default("24")
   /** focus reminder: notify after N minutes of continuous tracking; 0 = off */
   pomodoroMinutes Int @default(0)
+}
+
+// A saved report configuration; shareToken (when set) exposes it read-only
+// at /public/reports/:token without authentication.
+model SavedReport {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  params      Json
+  shareToken  String?   @unique
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
 }

@@ -2,15 +2,16 @@ import { randomBytes } from 'node:crypto'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../db'
-import { authMiddleware, type AuthEnv } from '../auth'
+import { authMiddleware, workspaceMiddleware, type WorkspaceEnv } from '../auth'
 
-const app = new Hono<AuthEnv>()
+const app = new Hono<WorkspaceEnv>()
 app.use('*', authMiddleware)
+app.use('*', workspaceMiddleware)
 
 const ReportParams = z.object({
   from: z.number(),
   to: z.number(),
-  groupBy: z.enum(['project', 'client', 'tag', 'description', 'day']),
+  groupBy: z.enum(['project', 'client', 'tag', 'description', 'day', 'member']),
   rounding: z.number(),
   roundingDir: z.enum(['nearest', 'up', 'down']),
   filter: z.enum(['all', 'billable', 'uninvoiced']).optional(),
@@ -23,7 +24,7 @@ const ReportInput = z.object({
 
 app.get('/', async (c) => {
   const reports = await prisma.savedReport.findMany({
-    where: { userId: c.get('userId') },
+    where: { userId: c.get('userId'), workspaceId: c.get('workspaceId') },
     orderBy: { createdAt: 'desc' },
   })
   return c.json(reports)
@@ -32,7 +33,12 @@ app.get('/', async (c) => {
 app.post('/', async (c) => {
   const body = ReportInput.parse(await c.req.json())
   const report = await prisma.savedReport.create({
-    data: { userId: c.get('userId'), name: body.name, params: body.params },
+    data: {
+      userId: c.get('userId'),
+      workspaceId: c.get('workspaceId'),
+      name: body.name,
+      params: body.params,
+    },
   })
   return c.json(report, 201)
 })

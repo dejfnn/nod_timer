@@ -22,6 +22,8 @@ export interface Tag {
 
 export interface TimeEntry {
   id: string
+  /** the workspace member who tracked this entry */
+  userId: string
   description: string
   projectId: string | null
   tagIds: string[]
@@ -56,13 +58,32 @@ export interface User {
   email: string
 }
 
+export interface Workspace {
+  id: string
+  name: string
+  role: 'owner' | 'member'
+  memberCount: number
+}
+
+export interface WorkspaceMemberInfo {
+  userId: string
+  email: string
+  role: 'owner' | 'member'
+}
+
+export interface PendingInvite {
+  id: string
+  workspaceId: string
+  workspaceName: string
+}
+
 export interface SavedReport {
   id: string
   name: string
   params: {
     from: number
     to: number
-    groupBy: 'project' | 'client' | 'tag' | 'description' | 'day'
+    groupBy: 'project' | 'client' | 'tag' | 'description' | 'day' | 'member'
     rounding: number
     roundingDir: 'nearest' | 'up' | 'down'
     filter?: 'all' | 'billable' | 'uninvoiced'

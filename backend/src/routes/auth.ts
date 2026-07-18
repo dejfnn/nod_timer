@@ -20,12 +20,20 @@ app.post('/register', async (c) => {
   const { email, password } = Credentials.parse(await c.req.json())
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) return c.json({ error: 'Email already registered' }, 409)
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash: await hashPassword(password),
-      settings: { create: {} },
-    },
+  const passwordHash = await hashPassword(password)
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: { email, passwordHash, settings: { create: {} } },
+    })
+    // personal workspace shares the user's id (see workspaceMiddleware)
+    await tx.workspace.create({
+      data: {
+        id: created.id,
+        name: 'Personal',
+        members: { create: { userId: created.id, role: 'owner' } },
+      },
+    })
+    return created
   })
   const token = await createToken(user.id)
   return c.json({ token, user: { id: user.id, email: user.email } }, 201)

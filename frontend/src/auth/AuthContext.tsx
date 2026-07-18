@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/api/resources'
-import { tokenStore, UNAUTHORIZED_EVENT } from '@/lib/api'
+import { tokenStore, UNAUTHORIZED_EVENT, workspaceStore } from '@/lib/api'
 import { queryClient } from '@/lib/queryClient'
 import type { User } from '@/types'
 
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     tokenStore.clear()
+    workspaceStore.clear()
     queryClient.clear()
     setUser(null)
   }

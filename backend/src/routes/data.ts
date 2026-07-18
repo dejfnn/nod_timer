@@ -1,23 +1,25 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../db'
-import { authMiddleware, type AuthEnv } from '../auth'
+import { authMiddleware, workspaceMiddleware, type WorkspaceEnv } from '../auth'
 
-const app = new Hono<AuthEnv>()
+const app = new Hono<WorkspaceEnv>()
 app.use('*', authMiddleware)
+app.use('*', workspaceMiddleware)
 
-// GET /api/data/export — full backup of the user's data (mirrors frontend export).
+// GET /api/data/export — full backup of the active workspace's data
 app.get('/export', async (c) => {
+  const workspaceId = c.get('workspaceId')
   const userId = c.get('userId')
   const [clients, projects, tags, timeEntries, settings] = await Promise.all([
-    prisma.client.findMany({ where: { userId } }),
-    prisma.project.findMany({ where: { userId } }),
-    prisma.tag.findMany({ where: { userId } }),
-    prisma.timeEntry.findMany({ where: { userId } }),
+    prisma.client.findMany({ where: { workspaceId } }),
+    prisma.project.findMany({ where: { workspaceId } }),
+    prisma.tag.findMany({ where: { workspaceId } }),
+    prisma.timeEntry.findMany({ where: { workspaceId } }),
     prisma.settings.findUnique({ where: { userId } }),
   ])
   return c.json({
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     clients,
     projects,
@@ -38,6 +40,7 @@ const ImportSchema = z.object({
         clientId: z.string().nullable().optional(),
         rate: z.number().nullable().optional(),
         archived: z.boolean().optional(),
+        estimateHours: z.number().nullable().optional(),
       }),
     )
     .optional(),
@@ -51,6 +54,7 @@ const ImportSchema = z.object({
       billable: z.boolean().optional(),
       start: z.number(),
       stop: z.number(),
+      invoicedAt: z.number().nullable().optional(),
     }),
   ),
   settings: z
@@ -60,48 +64,55 @@ const ImportSchema = z.object({
         defaultRate: z.number().optional(),
         weekStart: z.union([z.literal(0), z.literal(1)]).optional(),
         hourFormat: z.union([z.literal('12'), z.literal('24')]).optional(),
+        pomodoroMinutes: z.number().int().min(0).max(480).optional(),
       }),
     )
     .optional(),
 })
 
-// POST /api/data/import — replaces ALL of the user's data (mirrors frontend import).
+// POST /api/data/import — replaces ALL of the workspace's data (owner only)
 app.post('/import', async (c) => {
+  if (c.get('workspaceRole') !== 'owner') return c.json({ error: 'Owner role required' }, 403)
+  const workspaceId = c.get('workspaceId')
   const userId = c.get('userId')
   const data = ImportSchema.parse(await c.req.json())
 
   await prisma.$transaction(async (tx) => {
-    await tx.timeEntry.deleteMany({ where: { userId } })
-    await tx.runningEntry.deleteMany({ where: { userId } })
-    await tx.project.deleteMany({ where: { userId } })
-    await tx.client.deleteMany({ where: { userId } })
-    await tx.tag.deleteMany({ where: { userId } })
+    await tx.timeEntry.deleteMany({ where: { workspaceId } })
+    await tx.runningEntry.deleteMany({ where: { workspaceId } })
+    await tx.project.deleteMany({ where: { workspaceId } })
+    await tx.client.deleteMany({ where: { workspaceId } })
+    await tx.tag.deleteMany({ where: { workspaceId } })
 
     if (data.clients?.length) {
       await tx.client.createMany({
-        data: data.clients.map((x) => ({ id: x.id, userId, name: x.name })),
+        data: data.clients.map((x) => ({ id: x.id, workspaceId, name: x.name })),
       })
     }
     if (data.projects?.length) {
       await tx.project.createMany({
         data: data.projects.map((p) => ({
           id: p.id,
-          userId,
+          workspaceId,
           name: p.name,
           color: p.color,
           clientId: p.clientId ?? null,
           rate: p.rate ?? null,
           archived: p.archived ?? false,
+          estimateHours: p.estimateHours ?? null,
         })),
       })
     }
     if (data.tags?.length) {
-      await tx.tag.createMany({ data: data.tags.map((t) => ({ id: t.id, userId, name: t.name })) })
+      await tx.tag.createMany({
+        data: data.tags.map((t) => ({ id: t.id, workspaceId, name: t.name })),
+      })
     }
     if (data.timeEntries.length) {
       await tx.timeEntry.createMany({
         data: data.timeEntries.map((e) => ({
           id: e.id,
+          workspaceId,
           userId,
           description: e.description ?? '',
           projectId: e.projectId ?? null,
@@ -109,6 +120,7 @@ app.post('/import', async (c) => {
           billable: e.billable ?? false,
           start: BigInt(e.start),
           stop: BigInt(e.stop),
+          invoicedAt: e.invoicedAt != null ? BigInt(e.invoicedAt) : null,
         })),
       })
     }
@@ -151,6 +163,7 @@ const TogglImportSchema = z.object({
 // POST /api/data/import-toggl — merge import: creates missing clients/projects/
 // tags by name and skips entries that already exist (same start+stop+description).
 app.post('/import-toggl', async (c) => {
+  const workspaceId = c.get('workspaceId')
   const userId = c.get('userId')
   const { entries } = TogglImportSchema.parse(await c.req.json())
   for (const e of entries) {
@@ -166,11 +179,11 @@ app.post('/import-toggl', async (c) => {
     async (tx) => {
       // sequential on purpose — concurrent queries are not supported inside
       // Prisma interactive transactions
-      const clients = await tx.client.findMany({ where: { userId } })
-      const projects = await tx.project.findMany({ where: { userId } })
-      const tags = await tx.tag.findMany({ where: { userId } })
+      const clients = await tx.client.findMany({ where: { workspaceId } })
+      const projects = await tx.project.findMany({ where: { workspaceId } })
+      const tags = await tx.tag.findMany({ where: { workspaceId } })
       const existing = await tx.timeEntry.findMany({
-        where: { userId, start: { gte: BigInt(range.min), lte: BigInt(range.max) } },
+        where: { workspaceId, start: { gte: BigInt(range.min), lte: BigInt(range.max) } },
         select: { description: true, start: true, stop: true },
       })
 
@@ -189,7 +202,7 @@ app.post('/import-toggl', async (c) => {
         const key = name.toLowerCase()
         const found = clientByName.get(key)
         if (found) return found
-        const created = await tx.client.create({ data: { userId, name } })
+        const created = await tx.client.create({ data: { workspaceId, name } })
         clientByName.set(key, created.id)
         createdClients++
         return created.id
@@ -201,7 +214,7 @@ app.post('/import-toggl', async (c) => {
         if (found) return found
         const created = await tx.project.create({
           data: {
-            userId,
+            workspaceId,
             name,
             color:
               PROJECT_PALETTE[(projects.length + createdProjects) % PROJECT_PALETTE.length] ??
@@ -218,13 +231,14 @@ app.post('/import-toggl', async (c) => {
         const key = name.toLowerCase()
         const found = tagByName.get(key)
         if (found) return found
-        const created = await tx.tag.create({ data: { userId, name } })
+        const created = await tx.tag.create({ data: { workspaceId, name } })
         tagByName.set(key, created.id)
         createdTags++
         return created.id
       }
 
       const toInsert: {
+        workspaceId: string
         userId: string
         description: string
         projectId: string | null
@@ -249,6 +263,7 @@ app.post('/import-toggl', async (c) => {
           if (!tagIds.includes(id)) tagIds.push(id)
         }
         toInsert.push({
+          workspaceId,
           userId,
           description,
           projectId: e.project ? await resolveProject(e.project, e.client ?? null) : null,

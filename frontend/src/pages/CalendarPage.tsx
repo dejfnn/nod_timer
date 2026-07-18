@@ -128,6 +128,7 @@ export const CalendarPage = () => {
     if (drag.kind === 'create') {
       const preview: TimeEntry = {
         id: PREVIEW_ID,
+        userId: PREVIEW_ID,
         description: '',
         projectId: null,
         tagIds: [],

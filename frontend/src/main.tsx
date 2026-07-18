@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/500.css'
 import '@/index.css'
 import { App } from '@/App'
 import { AuthProvider } from '@/auth/AuthContext'
+import { WorkspaceProvider } from '@/auth/WorkspaceContext'
 import { ApiError } from '@/lib/api'
 import { queryClient } from '@/lib/queryClient'
 import { showToast } from '@/lib/toast'
@@ -35,7 +36,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <App />
+        <WorkspaceProvider>
+          <App />
+        </WorkspaceProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

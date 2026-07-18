@@ -13,10 +13,10 @@ export const useProjects = () => useQuery({ queryKey: qk.projects, queryFn: proj
 export const useTags = () => useQuery({ queryKey: qk.tags, queryFn: tagsApi.list }).data
 
 /** Time entries with start in [from, to), newest first. */
-export const useEntriesRange = (from: number, to: number) =>
+export const useEntriesRange = (from: number, to: number, scope: 'mine' | 'all' = 'mine') =>
   useQuery({
-    queryKey: qk.entriesRange(from, to),
-    queryFn: () => entriesApi.list({ from, to }),
+    queryKey: qk.entriesRange(from, to, scope),
+    queryFn: () => entriesApi.list({ from, to, scope }),
   }).data
 
 export const ENTRIES_PAGE_SIZE = 60

@@ -2,10 +2,11 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
-import { authMiddleware, type AuthEnv } from '../auth'
+import { authMiddleware, workspaceMiddleware, type WorkspaceEnv } from '../auth'
 
-const app = new Hono<AuthEnv>()
+const app = new Hono<WorkspaceEnv>()
 app.use('*', authMiddleware)
+app.use('*', workspaceMiddleware)
 
 const StartInput = z.object({
   description: z.string().optional(),
@@ -15,17 +16,19 @@ const StartInput = z.object({
   start: z.number().optional(),
 })
 
-// GET /api/running — current running timer or null
+// GET /api/running — current running timer or null (one per user, any workspace)
 app.get('/', async (c) => {
   const running = await prisma.runningEntry.findUnique({ where: { userId: c.get('userId') } })
   return c.json(running)
 })
 
-// POST /api/running/start — start (or replace) the running timer
+// POST /api/running/start — start (or replace) the running timer in the
+// active workspace
 app.post('/start', async (c) => {
   const userId = c.get('userId')
   const body = StartInput.parse(await c.req.json().catch(() => ({})))
   const fields = {
+    workspaceId: c.get('workspaceId'),
     description: body.description ?? '',
     projectId: body.projectId ?? null,
     tagIds: body.tagIds ?? [],
@@ -55,7 +58,8 @@ app.patch('/', async (c) => {
   return c.json(await prisma.runningEntry.findUnique({ where: { userId } }))
 })
 
-// POST /api/running/stop — stop the timer, persist it as a TimeEntry
+// POST /api/running/stop — stop the timer, persist it as a TimeEntry in the
+// workspace where it was started
 app.post('/stop', async (c) => {
   const userId = c.get('userId')
   const body = z.object({ stop: z.number().optional() }).parse(await c.req.json().catch(() => ({})))
@@ -66,6 +70,7 @@ app.post('/stop', async (c) => {
     const stop = Math.max(body.stop ?? Date.now(), Number(running.start))
     const created = await tx.timeEntry.create({
       data: {
+        workspaceId: running.workspaceId,
         userId,
         description: running.description,
         projectId: running.projectId,
