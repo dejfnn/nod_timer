@@ -124,4 +124,155 @@ app.post('/import', async (c) => {
   return c.json({ ok: true })
 })
 
+// ---- Toggl Track import ----------------------------------------------------
+
+const PROJECT_PALETTE = [
+  '#ffb02e', '#ff6250', '#e14f8a', '#b05cff', '#5c7cff',
+  '#2fb8ff', '#1fd3c2', '#41d97b', '#a8e03a', '#9a8c7a',
+]
+
+const TogglImportSchema = z.object({
+  entries: z
+    .array(
+      z.object({
+        client: z.string().nullable().optional(),
+        project: z.string().nullable().optional(),
+        description: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+        billable: z.boolean().optional(),
+        start: z.number(),
+        stop: z.number(),
+      }),
+    )
+    .min(1)
+    .max(50_000),
+})
+
+// POST /api/data/import-toggl — merge import: creates missing clients/projects/
+// tags by name and skips entries that already exist (same start+stop+description).
+app.post('/import-toggl', async (c) => {
+  const userId = c.get('userId')
+  const { entries } = TogglImportSchema.parse(await c.req.json())
+  for (const e of entries) {
+    if (e.stop < e.start) return c.json({ error: 'stop must not be before start' }, 400)
+  }
+
+  const range = entries.reduce(
+    (acc, e) => ({ min: Math.min(acc.min, e.start), max: Math.max(acc.max, e.stop) }),
+    { min: Infinity, max: -Infinity },
+  )
+
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // sequential on purpose — concurrent queries are not supported inside
+      // Prisma interactive transactions
+      const clients = await tx.client.findMany({ where: { userId } })
+      const projects = await tx.project.findMany({ where: { userId } })
+      const tags = await tx.tag.findMany({ where: { userId } })
+      const existing = await tx.timeEntry.findMany({
+        where: { userId, start: { gte: BigInt(range.min), lte: BigInt(range.max) } },
+        select: { description: true, start: true, stop: true },
+      })
+
+      const clientByName = new Map(clients.map((x) => [x.name.toLowerCase(), x.id]))
+      const projectByName = new Map(projects.map((x) => [x.name.toLowerCase(), x.id]))
+      const tagByName = new Map(tags.map((x) => [x.name.toLowerCase(), x.id]))
+      const existingKeys = new Set(
+        existing.map((e) => `${e.start}:${e.stop}:${e.description}`),
+      )
+
+      let createdClients = 0
+      let createdProjects = 0
+      let createdTags = 0
+
+      const resolveClient = async (name: string): Promise<string> => {
+        const key = name.toLowerCase()
+        const found = clientByName.get(key)
+        if (found) return found
+        const created = await tx.client.create({ data: { userId, name } })
+        clientByName.set(key, created.id)
+        createdClients++
+        return created.id
+      }
+
+      const resolveProject = async (name: string, clientName: string | null): Promise<string> => {
+        const key = name.toLowerCase()
+        const found = projectByName.get(key)
+        if (found) return found
+        const created = await tx.project.create({
+          data: {
+            userId,
+            name,
+            color:
+              PROJECT_PALETTE[(projects.length + createdProjects) % PROJECT_PALETTE.length] ??
+              '#5c7cff',
+            clientId: clientName ? await resolveClient(clientName) : null,
+          },
+        })
+        projectByName.set(key, created.id)
+        createdProjects++
+        return created.id
+      }
+
+      const resolveTag = async (name: string): Promise<string> => {
+        const key = name.toLowerCase()
+        const found = tagByName.get(key)
+        if (found) return found
+        const created = await tx.tag.create({ data: { userId, name } })
+        tagByName.set(key, created.id)
+        createdTags++
+        return created.id
+      }
+
+      const toInsert: {
+        userId: string
+        description: string
+        projectId: string | null
+        tagIds: string[]
+        billable: boolean
+        start: bigint
+        stop: bigint
+      }[] = []
+      let skippedDuplicates = 0
+
+      for (const e of entries) {
+        const description = e.description ?? ''
+        const key = `${e.start}:${e.stop}:${description}`
+        if (existingKeys.has(key)) {
+          skippedDuplicates++
+          continue
+        }
+        existingKeys.add(key)
+        const tagIds: string[] = []
+        for (const t of e.tags ?? []) {
+          const id = await resolveTag(t)
+          if (!tagIds.includes(id)) tagIds.push(id)
+        }
+        toInsert.push({
+          userId,
+          description,
+          projectId: e.project ? await resolveProject(e.project, e.client ?? null) : null,
+          tagIds,
+          billable: e.billable ?? false,
+          start: BigInt(e.start),
+          stop: BigInt(e.stop),
+        })
+      }
+
+      if (toInsert.length > 0) await tx.timeEntry.createMany({ data: toInsert })
+
+      return {
+        imported: toInsert.length,
+        skippedDuplicates,
+        createdClients,
+        createdProjects,
+        createdTags,
+      }
+    },
+    { timeout: 120_000, maxWait: 10_000 },
+  )
+
+  return c.json(result)
+})
+
 export default app

@@ -96,7 +96,16 @@ export type ExportData = {
   timeEntries: TimeEntry[]
   settings: Settings[]
 }
+export interface TogglImportResult {
+  imported: number
+  skippedDuplicates: number
+  createdClients: number
+  createdProjects: number
+  createdTags: number
+}
 export const dataApi = {
   export: () => apiGet<ExportData>('/api/data/export'),
   import: (data: unknown) => apiPost<{ ok: true }>('/api/data/import', data),
+  importToggl: (entries: unknown[]) =>
+    apiPost<TogglImportResult>('/api/data/import-toggl', { entries }),
 }

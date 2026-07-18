@@ -1,12 +1,15 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Icon } from '@/components/Icon'
+import { Modal } from '@/components/Modal'
 import { useSettings } from '@/hooks/useSettings'
 import { saveSettings } from '@/db/actions'
 import { dataApi } from '@/api/resources'
 import { queryClient } from '@/lib/queryClient'
 import { DEFAULT_SETTINGS } from '@/lib/constants'
+import { showToast } from '@/lib/toast'
 import type { Settings } from '@/types'
 import { downloadFile } from '@/utils/csv'
+import { parseTogglCsv, type TogglParseResult } from '@/utils/togglCsv'
 import { toDateInput } from '@/utils/time'
 
 const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'CHF']
@@ -14,6 +17,9 @@ const CURRENCIES = ['CZK', 'EUR', 'USD', 'GBP', 'PLN', 'CHF']
 export const SettingsPage = () => {
   const settings = useSettings()
   const fileRef = useRef<HTMLInputElement>(null)
+  const togglFileRef = useRef<HTMLInputElement>(null)
+  const [togglPreview, setTogglPreview] = useState<TogglParseResult | null>(null)
+  const [togglBusy, setTogglBusy] = useState(false)
 
   const update = (patch: Partial<Settings>) =>
     void saveSettings({ ...DEFAULT_SETTINGS, ...settings, ...patch })
@@ -37,6 +43,36 @@ export const SettingsPage = () => {
       alert('Import finished.')
     } catch {
       alert('Import failed — not a valid TimeFlow backup file.')
+    }
+  }
+
+  const pickTogglFile = async (file: File) => {
+    const result = parseTogglCsv(await file.text())
+    if (result.errors.length > 0) {
+      showToast(result.errors[0])
+      return
+    }
+    if (result.rows.length === 0) {
+      showToast('No usable entries found in the file.')
+      return
+    }
+    setTogglPreview(result)
+  }
+
+  const runTogglImport = async () => {
+    if (!togglPreview) return
+    setTogglBusy(true)
+    try {
+      const result = await dataApi.importToggl(togglPreview.rows)
+      await queryClient.invalidateQueries()
+      setTogglPreview(null)
+      showToast(
+        `Imported ${result.imported} entries` +
+          (result.skippedDuplicates > 0 ? ` (${result.skippedDuplicates} duplicates skipped)` : ''),
+        'success',
+      )
+    } finally {
+      setTogglBusy(false)
     }
   }
 
@@ -116,7 +152,7 @@ export const SettingsPage = () => {
 
       <section className="card p-5">
         <h3 className="display mb-4 text-[11px] text-mist-300">Data</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button className="btn-ghost" onClick={() => void exportJson()}>
             <Icon name="download" size={15} />
             Export backup (JSON)
@@ -136,12 +172,62 @@ export const SettingsPage = () => {
               e.target.value = ''
             }}
           />
+          <button className="btn-ghost" onClick={() => togglFileRef.current?.click()}>
+            <Icon name="upload" size={15} />
+            Import from Toggl (CSV)
+          </button>
+          <input
+            ref={togglFileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) void pickTogglFile(file)
+              e.target.value = ''
+            }}
+          />
         </div>
         <p className="mt-3 text-xs text-mist-500">
-          Your data is stored on the TimeFlow server under your account. Export a JSON backup any
-          time; importing one replaces all current data.
+          Your data is stored on the TimeFlow server under your account. JSON backup import
+          replaces all current data. Toggl import merges: it creates missing clients, projects and
+          tags by name and skips entries you already have. Use Toggl&apos;s Reports → Detailed →
+          Export → CSV.
         </p>
       </section>
+
+      {togglPreview && (
+        <Modal title="Import from Toggl" onClose={() => setTogglPreview(null)}>
+          <div className="space-y-3 text-sm text-paper-300">
+            <p>
+              <span className="font-mono text-paper-50">{togglPreview.rows.length}</span> time
+              entries found
+              {togglPreview.skipped > 0 && (
+                <span className="text-mist-500"> · {togglPreview.skipped} rows skipped (invalid)</span>
+              )}
+            </p>
+            <p className="text-xs text-mist-500">
+              Range: {toDateInput(Math.min(...togglPreview.rows.map((r) => r.start)))} –{' '}
+              {toDateInput(Math.max(...togglPreview.rows.map((r) => r.stop)))} ·{' '}
+              {new Set(togglPreview.rows.map((r) => r.project).filter(Boolean)).size} projects ·{' '}
+              {new Set(togglPreview.rows.map((r) => r.client).filter(Boolean)).size} clients ·{' '}
+              {new Set(togglPreview.rows.flatMap((r) => r.tags)).size} tags
+            </p>
+            <p className="text-xs text-mist-500">
+              Existing entries with the same time and description are skipped, so it is safe to
+              re-import the same file.
+            </p>
+            <div className="flex justify-end gap-2 border-t border-ink-700 pt-4">
+              <button className="btn-ghost" onClick={() => setTogglPreview(null)} disabled={togglBusy}>
+                Cancel
+              </button>
+              <button className="btn-accent" onClick={() => void runTogglImport()} disabled={togglBusy}>
+                {togglBusy ? 'Importing…' : 'Import'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <section className="card border-danger-500/30 p-5">
         <h3 className="display mb-4 text-[11px] text-danger-500">Danger zone</h3>
