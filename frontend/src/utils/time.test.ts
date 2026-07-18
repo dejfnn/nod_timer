@@ -9,6 +9,7 @@ import {
   HOUR,
   MINUTE,
   overlapMs,
+  roundDurationMs,
   startOfDay,
   startOfMonth,
   startOfWeek,
@@ -72,6 +73,20 @@ describe('overlapMs', () => {
   it('full containment', () => expect(overlapMs(10, 20, 0, 100)).toBe(10))
   it('partial overlap', () => expect(overlapMs(0, 50, 25, 100)).toBe(25))
   it('no overlap', () => expect(overlapMs(0, 10, 20, 30)).toBe(0))
+})
+
+describe('roundDurationMs', () => {
+  const m7 = 7 * MINUTE
+  it('off leaves duration untouched', () => expect(roundDurationMs(m7, 0, 'nearest')).toBe(m7))
+  it('nearest rounds down below midpoint', () =>
+    expect(roundDurationMs(m7, 15, 'nearest')).toBe(0))
+  it('nearest rounds up above midpoint', () =>
+    expect(roundDurationMs(8 * MINUTE, 15, 'nearest')).toBe(15 * MINUTE))
+  it('up always rounds up', () => expect(roundDurationMs(MINUTE, 15, 'up')).toBe(15 * MINUTE))
+  it('down always rounds down', () =>
+    expect(roundDurationMs(29 * MINUTE, 15, 'down')).toBe(15 * MINUTE))
+  it('exact multiples stay put', () =>
+    expect(roundDurationMs(30 * MINUTE, 15, 'up')).toBe(30 * MINUTE))
 })
 
 describe('input round-trips', () => {

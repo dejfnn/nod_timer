@@ -128,3 +128,14 @@ export function getRange(key: RangeKey, weekStart: 0 | 1, now = Date.now()): Dat
 export function overlapMs(start: number, stop: number, rangeStart: number, rangeEnd: number): number {
   return Math.max(0, Math.min(stop, rangeEnd) - Math.max(start, rangeStart))
 }
+
+export type RoundingDir = 'nearest' | 'up' | 'down'
+
+/** Round a duration to a multiple of `minutes` (0 = no rounding). */
+export function roundDurationMs(ms: number, minutes: number, dir: RoundingDir): number {
+  if (minutes <= 0) return ms
+  const unit = minutes * MINUTE
+  if (dir === 'up') return Math.ceil(ms / unit) * unit
+  if (dir === 'down') return Math.floor(ms / unit) * unit
+  return Math.round(ms / unit) * unit
+}

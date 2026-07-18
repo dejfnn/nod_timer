@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEntriesRange, useProjects } from '@/hooks/queries'
-import { createEntry } from '@/db/actions'
+import { createEntry, updateEntry } from '@/db/actions'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { Icon } from '@/components/Icon'
 import { useNow } from '@/hooks/useNow'
@@ -17,6 +17,8 @@ import {
 } from '@/utils/time'
 
 const HOUR_PX = 52
+const SNAP = 15 * MINUTE
+const DRAG_THRESHOLD_PX = 5
 
 interface Block {
   entry: TimeEntry
@@ -64,11 +66,45 @@ function layoutDay(items: { entry: TimeEntry; from: number; to: number }[]): Blo
   }))
 }
 
+/** Snap an absolute timestamp to the 15-minute grid of its local day. */
+function snapMs(ms: number): number {
+  const day = startOfDay(ms)
+  return day + Math.round((ms - day) / SNAP) * SNAP
+}
+
+const PREVIEW_ID = '__preview__'
+
+type DragState =
+  | { kind: 'create'; anchorMs: number; start: number; stop: number; moved: boolean }
+  | {
+      kind: 'move'
+      entryId: string
+      origStart: number
+      origStop: number
+      grabMs: number
+      start: number
+      stop: number
+      moved: boolean
+    }
+  | {
+      kind: 'resize'
+      entryId: string
+      edge: 'start' | 'stop'
+      origStart: number
+      origStop: number
+      start: number
+      stop: number
+      moved: boolean
+    }
+
 export const CalendarPage = () => {
   const settings = useSettings()
   const [weekOffset, setWeekOffset] = useState(0)
   const [editing, setEditing] = useState<{ entry: TimeEntry; isNew: boolean } | null>(null)
+  const [drag, setDrag] = useState<DragState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const downPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const now = useNow(MINUTE)
 
   const weekStartTs = addDays(startOfWeek(Date.now(), settings.weekStart), weekOffset * 7)
@@ -86,11 +122,31 @@ export const CalendarPage = () => {
     scrollRef.current?.scrollTo({ top: 7.5 * HOUR_PX })
   }, [])
 
+  /** Entries with the in-flight drag applied, so the preview lays out naturally. */
+  const displayEntries = useMemo(() => {
+    if (!drag) return entries
+    if (drag.kind === 'create') {
+      const preview: TimeEntry = {
+        id: PREVIEW_ID,
+        description: '',
+        projectId: null,
+        tagIds: [],
+        billable: false,
+        start: drag.start,
+        stop: drag.stop,
+      }
+      return [...entries, preview]
+    }
+    return entries.map((e) =>
+      e.id === drag.entryId ? { ...e, start: drag.start, stop: drag.stop } : e,
+    )
+  }, [entries, drag])
+
   const blocksByDay = useMemo(
     () =>
       days.map((day) => {
         const dayEnd = addDays(day, 1)
-        const items = entries
+        const items = displayEntries
           .filter((e) => e.stop > day && e.start < dayEnd)
           .map((e) => ({
             entry: e,
@@ -99,22 +155,125 @@ export const CalendarPage = () => {
           }))
         return layoutDay(items)
       }),
-    [days, entries],
+    [days, displayEntries],
   )
 
-  const createAt = async (day: number, offsetY: number) => {
-    // snap to the 15-minute slot under the cursor
-    const quarter = Math.floor(offsetY / (HOUR_PX / 4))
-    const start = day + quarter * 15 * MINUTE
-    const entry = await createEntry({
-      description: '',
-      projectId: null,
-      tagIds: [],
-      billable: false,
-      start,
-      stop: start + 15 * MINUTE,
+  /** Convert a pointer event into an absolute ms timestamp inside the grid. */
+  const pointerToMs = (e: { clientX: number; clientY: number }): number => {
+    const rect = gridRef.current!.getBoundingClientRect()
+    const colW = (rect.width - 56) / 7
+    const dayIdx = Math.min(6, Math.max(0, Math.floor((e.clientX - rect.left - 56) / colW)))
+    const minutes = Math.min(24 * 60, Math.max(0, ((e.clientY - rect.top) / HOUR_PX) * 60))
+    return days[dayIdx] + minutes * MINUTE
+  }
+
+  const capture = (e: React.PointerEvent) => {
+    gridRef.current?.setPointerCapture(e.pointerId)
+    downPos.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const startCreate = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    capture(e)
+    const ms = pointerToMs(e)
+    const day = startOfDay(ms)
+    const slot = day + Math.floor((ms - day) / SNAP) * SNAP
+    setDrag({ kind: 'create', anchorMs: slot, start: slot, stop: slot + SNAP, moved: false })
+  }
+
+  const startMove = (e: React.PointerEvent, entry: TimeEntry) => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    capture(e)
+    setDrag({
+      kind: 'move',
+      entryId: entry.id,
+      origStart: entry.start,
+      origStop: entry.stop,
+      grabMs: pointerToMs(e),
+      start: entry.start,
+      stop: entry.stop,
+      moved: false,
     })
-    setEditing({ entry, isNew: true })
+  }
+
+  const startResize = (e: React.PointerEvent, entry: TimeEntry, edge: 'start' | 'stop') => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    capture(e)
+    setDrag({
+      kind: 'resize',
+      entryId: entry.id,
+      edge,
+      origStart: entry.start,
+      origStop: entry.stop,
+      start: entry.start,
+      stop: entry.stop,
+      moved: false,
+    })
+  }
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!drag) return
+    const moved =
+      drag.moved ||
+      Math.abs(e.clientX - downPos.current.x) + Math.abs(e.clientY - downPos.current.y) >
+        DRAG_THRESHOLD_PX
+    const ms = pointerToMs(e)
+
+    if (drag.kind === 'create') {
+      // stay within the anchor's day column; only the vertical position matters
+      const rect = gridRef.current!.getBoundingClientRect()
+      const minutes = Math.min(24 * 60, Math.max(0, ((e.clientY - rect.top) / HOUR_PX) * 60))
+      const day = startOfDay(drag.anchorMs)
+      const edge = day + Math.round((minutes * MINUTE) / SNAP) * SNAP
+      setDrag({
+        ...drag,
+        moved,
+        start: Math.min(drag.anchorMs, edge),
+        stop: Math.max(drag.anchorMs + SNAP, edge),
+      })
+    } else if (drag.kind === 'move') {
+      const delta = ms - drag.grabMs
+      const start = snapMs(drag.origStart + delta)
+      setDrag({ ...drag, moved, start, stop: start + (drag.origStop - drag.origStart) })
+    } else {
+      const point = snapMs(ms)
+      if (drag.edge === 'stop') {
+        setDrag({ ...drag, moved, stop: Math.max(point, drag.origStart + SNAP) })
+      } else {
+        setDrag({ ...drag, moved, start: Math.min(point, drag.origStop - SNAP) })
+      }
+    }
+  }
+
+  const onPointerUp = () => {
+    if (!drag) return
+    setDrag(null)
+
+    if (drag.kind === 'create') {
+      void createEntry({
+        description: '',
+        projectId: null,
+        tagIds: [],
+        billable: false,
+        start: drag.start,
+        stop: drag.stop,
+      }).then((entry) => setEditing({ entry, isNew: true }))
+      return
+    }
+
+    const original = entries.find((e) => e.id === drag.entryId)
+    if (!original) return
+
+    if (!drag.moved) {
+      // plain click: open the editor (resize-handle clicks included)
+      setEditing({ entry: original, isNew: false })
+      return
+    }
+    if (drag.start !== drag.origStart || drag.stop !== drag.origStop) {
+      void updateEntry(drag.entryId, { start: drag.start, stop: drag.stop })
+    }
   }
 
   const monthLabel = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(
@@ -165,7 +324,14 @@ export const CalendarPage = () => {
 
         {/* scrollable grid */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-[56px_repeat(7,1fr)]" style={{ height: 24 * HOUR_PX }}>
+          <div
+            ref={gridRef}
+            className="grid select-none grid-cols-[56px_repeat(7,1fr)]"
+            style={{ height: 24 * HOUR_PX }}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={() => setDrag(null)}
+          >
             {/* hour labels */}
             <div className="relative">
               {Array.from({ length: 23 }, (_, i) => (
@@ -195,18 +361,21 @@ export const CalendarPage = () => {
                       HOUR_PX +
                       'px)',
                   }}
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    void createAt(day, e.clientY - rect.top)
-                  }}
+                  onPointerDown={startCreate}
                 >
                   {blocksByDay[di].map((b) => {
                     const project = projects.find((p) => p.id === b.entry.projectId)
                     const color = project?.color ?? 'var(--color-mist-500)'
+                    const isDragTarget =
+                      b.entry.id === PREVIEW_ID ||
+                      (drag !== null && drag.kind !== 'create' && drag.entryId === b.entry.id)
+                    const showHandles = !drag && b.entry.id !== PREVIEW_ID && b.height > 26
                     return (
-                      <button
+                      <div
                         key={b.entry.id + String(b.top)}
-                        className="absolute cursor-pointer overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-left transition-[filter] hover:brightness-125"
+                        className={`absolute cursor-grab overflow-hidden rounded border-l-2 px-1.5 py-0.5 text-left transition-[filter] hover:brightness-125 ${
+                          isDragTarget ? 'pointer-events-none opacity-80 ring-1 ring-accent-500/60' : ''
+                        }`}
                         style={{
                           top: b.top,
                           height: b.height,
@@ -215,10 +384,7 @@ export const CalendarPage = () => {
                           background: 'color-mix(in srgb, ' + color + ' 22%, var(--color-ink-800))',
                           borderColor: color,
                         }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditing({ entry: b.entry, isNew: false })
-                        }}
+                        onPointerDown={(e) => startMove(e, b.entry)}
                       >
                         <div className="truncate text-[11px] leading-tight text-paper-50">
                           {b.entry.description || '(no description)'}
@@ -228,7 +394,19 @@ export const CalendarPage = () => {
                             {fmtDuration(b.entry.stop - b.entry.start)}
                           </div>
                         )}
-                      </button>
+                        {showHandles && (
+                          <>
+                            <div
+                              className="absolute inset-x-0 top-0 h-1.5 cursor-ns-resize"
+                              onPointerDown={(e) => startResize(e, b.entry, 'start')}
+                            />
+                            <div
+                              className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+                              onPointerDown={(e) => startResize(e, b.entry, 'stop')}
+                            />
+                          </>
+                        )}
+                      </div>
                     )
                   })}
 
@@ -248,7 +426,8 @@ export const CalendarPage = () => {
       </div>
 
       <p className="mt-2 text-[11px] text-mist-500">
-        Click an empty slot to add a 15-minute entry, then adjust its times.
+        Click or drag on an empty slot to add an entry · drag a block to move it · drag its edge to
+        resize.
       </p>
 
       {editing && (

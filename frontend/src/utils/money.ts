@@ -6,10 +6,19 @@ export function entryRate(projectId: string | null, projects: Project[], setting
   return project?.rate ?? settings.defaultRate
 }
 
-export function entryAmount(entry: TimeEntry, projects: Project[], settings: Settings): number {
+/** Billable amount for an arbitrary duration (used with rounded report durations). */
+export function amountForMs(
+  entry: Pick<TimeEntry, 'billable' | 'projectId'>,
+  ms: number,
+  projects: Project[],
+  settings: Settings,
+): number {
   if (!entry.billable) return 0
-  const rate = entryRate(entry.projectId, projects, settings)
-  return ((entry.stop - entry.start) / HOUR) * rate
+  return (ms / HOUR) * entryRate(entry.projectId, projects, settings)
+}
+
+export function entryAmount(entry: TimeEntry, projects: Project[], settings: Settings): number {
+  return amountForMs(entry, entry.stop - entry.start, projects, settings)
 }
 
 export function fmtMoney(amount: number, currency: string): string {

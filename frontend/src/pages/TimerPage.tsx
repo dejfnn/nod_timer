@@ -1,13 +1,82 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useClients, useInfiniteEntries, useProjects, useTags } from '@/hooks/queries'
+import { continueEntry } from '@/db/actions'
 import { EditEntryModal } from '@/components/EditEntryModal'
 import { EntryRow } from '@/components/EntryRow'
+import { Icon } from '@/components/Icon'
 import { useSettings } from '@/hooks/useSettings'
-import type { TimeEntry } from '@/types'
+import type { Project, TimeEntry } from '@/types'
 import { fmtDayLabel, fmtDuration, startOfDay } from '@/utils/time'
+
+interface StackRowProps {
+  entries: TimeEntry[]
+  projects: Project[]
+  open: boolean
+  onToggle: () => void
+  children?: ReactNode
+}
+
+/** Collapsed group of identical entries within one day. */
+const StackRow = ({ entries, projects, open, onToggle, children }: StackRowProps) => {
+  const first = entries[0]
+  const project = first.projectId ? projects.find((p) => p.id === first.projectId) : undefined
+  const total = entries.reduce((sum, e) => sum + (e.stop - e.start), 0)
+
+  return (
+    <div className={open ? 'bg-ink-800/40' : ''}>
+      <div
+        className="group flex cursor-pointer items-center gap-3 border-t border-ink-700/60 px-4 py-2.5 transition-colors hover:bg-ink-800/70"
+        onClick={onToggle}
+      >
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-ink-600 font-mono text-xs text-paper-300 tabular-nums"
+          title={open ? 'Collapse' : 'Expand'}
+        >
+          {entries.length}
+        </span>
+        <span className={`min-w-0 truncate text-sm ${first.description ? 'text-paper-50' : 'text-mist-500 italic'}`}>
+          {first.description || '(no description)'}
+        </span>
+        {project && (
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-paper-300">
+            <span className="size-2 rounded-full" style={{ background: project.color }} />
+            {project.name}
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-center gap-3">
+          {first.billable && <Icon name="dollar" size={14} className="text-accent-500" />}
+          <span className="w-20 text-right font-mono text-sm text-paper-50 tabular-nums">
+            {fmtDuration(total)}
+          </span>
+          <button
+            className="icon-btn opacity-0 group-hover:opacity-100"
+            title="Continue this entry"
+            onClick={(e) => {
+              e.stopPropagation()
+              void continueEntry(first)
+            }}
+          >
+            <Icon name="play" size={15} />
+          </button>
+          <Icon
+            name={open ? 'chevronLeft' : 'chevronRight'}
+            size={14}
+            className="rotate-90 text-mist-500"
+          />
+        </span>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/** Entries with identical description/project/tags/billable stack together, like Toggl. */
+const stackKey = (e: TimeEntry) =>
+  `${e.description}|${e.projectId ?? ''}|${[...e.tagIds].sort().join(',')}|${e.billable}`
 
 export const TimerPage = () => {
   const [editing, setEditing] = useState<TimeEntry | null>(null)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const settings = useSettings()
 
   const { entries, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteEntries()
@@ -21,8 +90,23 @@ export const TimerPage = () => {
       const day = startOfDay(e.start)
       map.set(day, [...(map.get(day) ?? []), e])
     }
-    return [...map.entries()]
+    return [...map.entries()].map(([day, dayEntries]) => {
+      const stacks = new Map<string, TimeEntry[]>()
+      for (const e of dayEntries) {
+        const key = stackKey(e)
+        stacks.set(key, [...(stacks.get(key) ?? []), e])
+      }
+      return [day, [...stacks.entries()]] as const
+    })
   }, [entries])
+
+  const toggleStack = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   if (!entries) return null
 
@@ -39,8 +123,11 @@ export const TimerPage = () => {
       )}
 
       <div className="space-y-5">
-        {groups.map(([day, dayEntries], i) => {
-          const total = dayEntries.reduce((sum, e) => sum + (e.stop - e.start), 0)
+        {groups.map(([day, stacks], i) => {
+          const total = stacks.reduce(
+            (sum, [, es]) => sum + es.reduce((s, e) => s + (e.stop - e.start), 0),
+            0,
+          )
           return (
             <section
               key={day}
@@ -53,17 +140,45 @@ export const TimerPage = () => {
                   {fmtDuration(total)}
                 </span>
               </header>
-              {dayEntries.map((entry) => (
-                <EntryRow
-                  key={entry.id}
-                  entry={entry}
-                  projects={projects}
-                  clients={clients}
-                  tags={tags}
-                  hourFormat={settings.hourFormat}
-                  onEdit={setEditing}
-                />
-              ))}
+              {stacks.map(([key, stackEntries]) => {
+                if (stackEntries.length === 1) {
+                  return (
+                    <EntryRow
+                      key={stackEntries[0].id}
+                      entry={stackEntries[0]}
+                      projects={projects}
+                      clients={clients}
+                      tags={tags}
+                      hourFormat={settings.hourFormat}
+                      onEdit={setEditing}
+                    />
+                  )
+                }
+                const stackId = `${day}:${key}`
+                const isOpen = expanded.has(stackId)
+                return (
+                  <StackRow
+                    key={stackId}
+                    entries={stackEntries}
+                    projects={projects}
+                    open={isOpen}
+                    onToggle={() => toggleStack(stackId)}
+                  >
+                    {isOpen &&
+                      stackEntries.map((entry) => (
+                        <EntryRow
+                          key={entry.id}
+                          entry={entry}
+                          projects={projects}
+                          clients={clients}
+                          tags={tags}
+                          hourFormat={settings.hourFormat}
+                          onEdit={setEditing}
+                        />
+                      ))}
+                  </StackRow>
+                )
+              })}
             </section>
           )
         })}

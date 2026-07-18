@@ -57,6 +57,17 @@ export const entriesApi = {
   remove: (id: string) => apiDelete<{ ok: true }>(`/api/entries/${id}`),
 }
 
+/** Recent distinct entry for the timer-input autocomplete. */
+export interface Suggestion {
+  description: string
+  projectId: string | null
+  tagIds: string[]
+  billable: boolean
+}
+export const suggestApi = {
+  list: (q: string) => apiGet<Suggestion[]>(`/api/entries/suggest?q=${encodeURIComponent(q)}`),
+}
+
 export type RunningInput = Partial<Omit<RunningEntry, 'id'>>
 export const runningApi = {
   get: () => apiGet<RunningEntry | null>('/api/running'),
