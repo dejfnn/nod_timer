@@ -158,6 +158,7 @@ export const TimerBar = () => {
         clientId: null,
         rate: null,
         archived: false,
+        estimateHours: null,
       })
       await applyProject(project.id)
     } else {

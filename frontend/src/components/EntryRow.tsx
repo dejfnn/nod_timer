@@ -53,6 +53,11 @@ export const EntryRow = ({ entry, projects, clients, tags, hourFormat, onEdit }:
       )}
 
       <span className="ml-auto flex shrink-0 items-center gap-3">
+        {entry.invoicedAt !== null && (
+          <span title="Invoiced" className="text-mist-400">
+            <Icon name="check" size={14} />
+          </span>
+        )}
         {entry.billable && <Icon name="dollar" size={14} className="text-accent-500" />}
         <span className="hidden font-mono text-xs text-mist-500 tabular-nums sm:inline">
           {fmtClock(entry.start, hourFormat)} – {fmtClock(entry.stop, hourFormat)}

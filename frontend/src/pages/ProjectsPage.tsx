@@ -7,7 +7,7 @@ import { useSettings } from '@/hooks/useSettings'
 import type { Project } from '@/types'
 import { PROJECT_COLORS } from '@/utils/colors'
 import { fmtMoney } from '@/utils/money'
-import { fmtDuration } from '@/utils/time'
+import { fmtDuration, fmtHours, HOUR } from '@/utils/time'
 
 type Draft = Omit<Project, 'id'> & { id: string | null }
 
@@ -18,6 +18,7 @@ const emptyDraft = (): Draft => ({
   clientId: null,
   rate: null,
   archived: false,
+  estimateHours: null,
 })
 
 export const ProjectsPage = () => {
@@ -80,14 +81,31 @@ export const ProjectsPage = () => {
               style={{ animationDelay: `${Math.min(i, 10) * 35}ms` }}
             >
               <span className="size-3 shrink-0 rounded-full" style={{ background: p.color }} />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="truncate text-sm text-paper-50">
                   {p.name}
                   {p.archived && <span className="ml-2 text-[10px] tracking-wider text-mist-500 uppercase">archived</span>}
                 </div>
                 {client && <div className="text-xs text-mist-500">{client.name}</div>}
+                {p.estimateHours !== null && p.estimateHours > 0 && (() => {
+                  const tracked = trackedMs.get(p.id) ?? 0
+                  const pct = (tracked / (p.estimateHours * HOUR)) * 100
+                  return (
+                    <div className="mt-1.5 flex max-w-64 items-center gap-2">
+                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-ink-700">
+                        <div
+                          className={`h-full rounded-full ${pct >= 100 ? 'bg-danger-500' : pct >= 80 ? 'bg-accent-500' : 'bg-accent-500/60'}`}
+                          style={{ width: `${Math.min(100, pct)}%` }}
+                        />
+                      </div>
+                      <span className={`font-mono text-[10px] tabular-nums ${pct >= 100 ? 'text-danger-500' : 'text-mist-500'}`}>
+                        {Math.round(pct)} % of {fmtHours(p.estimateHours * HOUR)}
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
-              <span className="ml-auto font-mono text-xs text-mist-400 tabular-nums">
+              <span className="font-mono text-xs text-mist-400 tabular-nums">
                 {fmtDuration(trackedMs.get(p.id) ?? 0)}
               </span>
               <span className="w-24 text-right font-mono text-xs text-paper-300 tabular-nums">
@@ -183,6 +201,24 @@ export const ProjectsPage = () => {
                   placeholder={`default (${settings.defaultRate})`}
                 />
               </div>
+            </div>
+
+            <div className="w-44">
+              <label className="label">Time estimate (hours)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={draft.estimateHours ?? ''}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    estimateHours: e.target.value === '' ? null : Number(e.target.value),
+                  })
+                }
+                className="field w-full font-mono"
+                placeholder="no estimate"
+              />
             </div>
 
             <div className="flex justify-end gap-2 border-t border-ink-700 pt-4">

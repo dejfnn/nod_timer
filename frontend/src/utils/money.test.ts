@@ -5,8 +5,8 @@ import type { Project, Settings, TimeEntry } from '@/types'
 
 const settings: Settings = { currency: 'CZK', defaultRate: 500, weekStart: 1, hourFormat: '24' }
 const projects: Project[] = [
-  { id: 'p1', name: 'A', color: '#fff', clientId: null, rate: 1000, archived: false },
-  { id: 'p2', name: 'B', color: '#fff', clientId: null, rate: null, archived: false },
+  { id: 'p1', name: 'A', color: '#fff', clientId: null, rate: 1000, archived: false, estimateHours: null },
+  { id: 'p2', name: 'B', color: '#fff', clientId: null, rate: null, archived: false, estimateHours: null },
 ]
 
 const entry = (over: Partial<TimeEntry>): TimeEntry => ({
@@ -17,6 +17,7 @@ const entry = (over: Partial<TimeEntry>): TimeEntry => ({
   billable: true,
   start: 0,
   stop: HOUR,
+  invoicedAt: null,
   ...over,
 })
 

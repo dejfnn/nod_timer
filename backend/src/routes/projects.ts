@@ -12,6 +12,7 @@ const ProjectInput = z.object({
   clientId: z.string().nullable().optional(),
   rate: z.number().nullable().optional(),
   archived: z.boolean().optional(),
+  estimateHours: z.number().positive().nullable().optional(),
 })
 
 app.get('/', async (c) => {

@@ -134,6 +134,7 @@ export const CalendarPage = () => {
         billable: false,
         start: drag.start,
         stop: drag.stop,
+        invoicedAt: null,
       }
       return [...entries, preview]
     }

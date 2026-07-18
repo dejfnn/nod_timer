@@ -11,6 +11,8 @@ export interface Project {
   /** hourly rate; null = use default rate from settings */
   rate: number | null
   archived: boolean
+  /** time estimate in hours; null = no estimate */
+  estimateHours: number | null
 }
 
 export interface Tag {
@@ -26,6 +28,8 @@ export interface TimeEntry {
   billable: boolean
   start: number
   stop: number
+  /** ms timestamp when marked invoiced; null = not invoiced */
+  invoicedAt: number | null
 }
 
 /** The single currently-running timer, kept out of timeEntries until stopped. */
@@ -48,4 +52,18 @@ export interface Settings {
 export interface User {
   id: string
   email: string
+}
+
+export interface SavedReport {
+  id: string
+  name: string
+  params: {
+    from: number
+    to: number
+    groupBy: 'project' | 'client' | 'tag' | 'description' | 'day'
+    rounding: number
+    roundingDir: 'nearest' | 'up' | 'down'
+    filter?: 'all' | 'billable' | 'uninvoiced'
+  }
+  shareToken: string | null
 }

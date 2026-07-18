@@ -1,5 +1,14 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api'
-import type { Client, Project, RunningEntry, Settings, Tag, TimeEntry, User } from '@/types'
+import type {
+  Client,
+  Project,
+  RunningEntry,
+  SavedReport,
+  Settings,
+  Tag,
+  TimeEntry,
+  User,
+} from '@/types'
 
 export type AuthResponse = { token: string; user: User }
 
@@ -35,7 +44,7 @@ export const tagsApi = {
   remove: (id: string) => apiDelete<{ ok: true }>(`/api/tags/${id}`),
 }
 
-export type EntryInput = Omit<TimeEntry, 'id'>
+export type EntryInput = Omit<TimeEntry, 'id' | 'invoicedAt'> & { invoicedAt?: number | null }
 export interface EntriesQuery {
   from?: number
   to?: number
@@ -55,6 +64,29 @@ export const entriesApi = {
   create: (data: EntryInput) => apiPost<TimeEntry>('/api/entries', data),
   update: (id: string, data: Partial<EntryInput>) => apiPatch<TimeEntry>(`/api/entries/${id}`, data),
   remove: (id: string) => apiDelete<{ ok: true }>(`/api/entries/${id}`),
+  markInvoiced: (ids: string[], invoiced: boolean) =>
+    apiPost<{ updated: number }>('/api/entries/mark-invoiced', { ids, invoiced }),
+}
+
+export interface PublicReportData {
+  name: string
+  params: SavedReport['params']
+  entries: TimeEntry[]
+  projects: Pick<Project, 'id' | 'name' | 'color' | 'clientId' | 'rate'>[]
+  clients: Client[]
+  tags: Tag[]
+  currency: string
+  defaultRate: number
+}
+
+export const reportsApi = {
+  list: () => apiGet<SavedReport[]>('/api/reports'),
+  create: (name: string, params: SavedReport['params']) =>
+    apiPost<SavedReport>('/api/reports', { name, params }),
+  remove: (id: string) => apiDelete<{ ok: true }>(`/api/reports/${id}`),
+  share: (id: string) => apiPost<SavedReport>(`/api/reports/${id}/share`),
+  unshare: (id: string) => apiDelete<{ ok: true }>(`/api/reports/${id}/share`),
+  public: (token: string) => apiGet<PublicReportData>(`/public/reports/${token}`),
 }
 
 /** Recent distinct entry for the timer-input autocomplete. */

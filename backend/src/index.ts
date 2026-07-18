@@ -17,6 +17,8 @@ import entriesRoutes from './routes/timeEntries'
 import runningRoutes from './routes/running'
 import settingsRoutes from './routes/settings'
 import dataRoutes from './routes/data'
+import reportsRoutes from './routes/reports'
+import publicReportsRoutes from './routes/publicReports'
 
 const app = new Hono()
 
@@ -44,6 +46,8 @@ app.route('/api/entries', entriesRoutes)
 app.route('/api/running', runningRoutes)
 app.route('/api/settings', settingsRoutes)
 app.route('/api/data', dataRoutes)
+app.route('/api/reports', reportsRoutes)
+app.route('/public/reports', publicReportsRoutes)
 
 app.onError((err, c) => {
   if (err instanceof ZodError) {

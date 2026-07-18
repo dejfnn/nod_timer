@@ -1,7 +1,14 @@
 import type { Project, Settings, TimeEntry } from '@/types'
 import { HOUR } from '@/utils/time'
 
-export function entryRate(projectId: string | null, projects: Project[], settings: Settings): number {
+type RateProject = Pick<Project, 'id' | 'rate'>
+type RateSettings = Pick<Settings, 'defaultRate'>
+
+export function entryRate(
+  projectId: string | null,
+  projects: RateProject[],
+  settings: RateSettings,
+): number {
   const project = projectId ? projects.find((p) => p.id === projectId) : undefined
   return project?.rate ?? settings.defaultRate
 }
@@ -10,14 +17,14 @@ export function entryRate(projectId: string | null, projects: Project[], setting
 export function amountForMs(
   entry: Pick<TimeEntry, 'billable' | 'projectId'>,
   ms: number,
-  projects: Project[],
-  settings: Settings,
+  projects: RateProject[],
+  settings: RateSettings,
 ): number {
   if (!entry.billable) return 0
   return (ms / HOUR) * entryRate(entry.projectId, projects, settings)
 }
 
-export function entryAmount(entry: TimeEntry, projects: Project[], settings: Settings): number {
+export function entryAmount(entry: TimeEntry, projects: RateProject[], settings: RateSettings): number {
   return amountForMs(entry, entry.stop - entry.start, projects, settings)
 }
 

@@ -10,6 +10,7 @@ import { AuthPage } from '@/pages/AuthPage'
 import { CalendarPage } from '@/pages/CalendarPage'
 import { ClientsPage } from '@/pages/ClientsPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
+import { PublicReportPage } from '@/pages/PublicReportPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TagsPage } from '@/pages/TagsPage'
@@ -38,7 +39,8 @@ const useGlobalShortcuts = () => {
   }, [])
 }
 
-export const App = () => {
+/** The authenticated application shell (sidebar + timer bar + pages). */
+const Shell = () => {
   const { user, loading } = useAuth()
   useGlobalShortcuts()
 
@@ -47,35 +49,41 @@ export const App = () => {
   }
 
   if (!user) {
-    return (
-      <>
-        <AuthPage />
-        <Toasts />
-      </>
-    )
+    return <AuthPage />
   }
 
   return (
-    <BrowserRouter>
-      <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
+      <div className="print-hide contents">
         <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TimerBar />
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<TimerPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/clients" element={<ClientsPage />} />
-              <Route path="/tags" element={<TagsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<TimerPage />} />
-            </Routes>
-          </main>
-        </div>
       </div>
-      <Toasts />
-    </BrowserRouter>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="print-hide">
+          <TimerBar />
+        </div>
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <Routes>
+            <Route path="/" element={<TimerPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/tags" element={<TagsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<TimerPage />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
   )
 }
+
+export const App = () => (
+  <BrowserRouter>
+    <Routes>
+      <Route path="/r/:token" element={<PublicReportPage />} />
+      <Route path="*" element={<Shell />} />
+    </Routes>
+    <Toasts />
+  </BrowserRouter>
+)

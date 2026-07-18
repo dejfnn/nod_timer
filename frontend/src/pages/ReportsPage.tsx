@@ -1,24 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { entriesApi, reportsApi } from '@/api/resources'
 import { useClients, useEntriesRange, useProjects, useTags } from '@/hooks/queries'
 import { BarChart } from '@/components/charts/BarChart'
 import { DonutChart } from '@/components/charts/DonutChart'
 import { Icon } from '@/components/Icon'
+import { useClickOutside } from '@/hooks/useClickOutside'
 import { useSettings } from '@/hooks/useSettings'
-import type { TimeEntry } from '@/types'
-import { PROJECT_COLORS } from '@/utils/colors'
+import { qk, queryClient } from '@/lib/queryClient'
+import { showToast } from '@/lib/toast'
+import type { SavedReport, TimeEntry } from '@/types'
 import { buildCsv, downloadFile } from '@/utils/csv'
 import { amountForMs, fmtMoney } from '@/utils/money'
+import {
+  buildReport,
+  filterReportEntries,
+  type GroupKey,
+  type ReportFilter,
+} from '@/utils/report'
 import {
   addDays,
   DAY,
   fmtClock,
   fmtDateShort,
-  fmtDayLabel,
   fmtDuration,
   getRange,
   overlapMs,
   roundDurationMs,
-  startOfDay,
   startOfMonth,
   toDateInput,
   type RangeKey,
@@ -33,8 +41,6 @@ const PRESETS: { key: RangeKey; label: string }[] = [
   { key: 'year', label: 'This year' },
 ]
 
-type GroupKey = 'project' | 'client' | 'tag' | 'description' | 'day'
-
 const GROUPINGS: { key: GroupKey; label: string }[] = [
   { key: 'project', label: 'Project' },
   { key: 'client', label: 'Client' },
@@ -43,18 +49,13 @@ const GROUPINGS: { key: GroupKey; label: string }[] = [
   { key: 'day', label: 'Day' },
 ]
 
-const ROUNDINGS = [0, 5, 6, 10, 15, 30]
+const FILTERS: { key: ReportFilter; label: string }[] = [
+  { key: 'all', label: 'All entries' },
+  { key: 'billable', label: 'Billable only' },
+  { key: 'uninvoiced', label: 'Uninvoiced billable' },
+]
 
-interface GroupRow {
-  id: string
-  label: string
-  color: string | null
-  ms: number
-  amount: number
-  /** secondary breakdown: description (or project when grouping by description) */
-  sub: Map<string, number>
-  sortKey: number
-}
+const ROUNDINGS = [0, 5, 6, 10, 15, 30]
 
 export const ReportsPage = () => {
   const settings = useSettings()
@@ -64,6 +65,10 @@ export const ReportsPage = () => {
   const [groupBy, setGroupBy] = useState<GroupKey>('project')
   const [rounding, setRounding] = useState(0)
   const [roundingDir, setRoundingDir] = useState<RoundingDir>('nearest')
+  const [filter, setFilter] = useState<ReportFilter>('all')
+  const [savedOpen, setSavedOpen] = useState(false)
+  const savedRef = useRef<HTMLDivElement>(null)
+  useClickOutside(savedRef, () => setSavedOpen(false), savedOpen)
 
   const range = useMemo(() => {
     if (preset !== 'custom') return getRange(preset, settings.weekStart)
@@ -74,22 +79,26 @@ export const ReportsPage = () => {
 
   const rangeEntries = useEntriesRange(range.start, range.end)
   const entries = useMemo(
-    () => [...(rangeEntries ?? [])].sort((a, b) => a.start - b.start),
-    [rangeEntries],
+    () =>
+      filterReportEntries(
+        [...(rangeEntries ?? [])].sort((a, b) => a.start - b.start),
+        filter,
+      ),
+    [rangeEntries, filter],
   )
   const projects = useProjects() ?? []
   const clients = useClients() ?? []
   const tags = useTags() ?? []
 
-  /** Duration of an entry with the report's rounding applied. */
+  const savedReports = useQuery({ queryKey: ['reports'], queryFn: reportsApi.list }).data ?? []
+
   const dur = (e: TimeEntry) => roundDurationMs(e.stop - e.start, rounding, roundingDir)
 
-  const totalMs = entries.reduce((sum, e) => sum + dur(e), 0)
-  const billableAmount = entries.reduce(
-    (sum, e) => sum + amountForMs(e, dur(e), projects, settings),
-    0,
+  const report = useMemo(
+    () => buildReport(entries, { groupBy, rounding, roundingDir }, projects, clients, tags, settings),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, groupBy, rounding, roundingDir, projects, clients, tags, settings],
   )
-  const billableMs = entries.filter((e) => e.billable).reduce((sum, e) => sum + dur(e), 0)
 
   // bar chart buckets: daily, or monthly for long ranges (actual, un-rounded time)
   const chartData = useMemo(() => {
@@ -117,71 +126,67 @@ export const ReportsPage = () => {
     return buckets
   }, [entries, range])
 
-  const groupsOf = (e: TimeEntry): { id: string; label: string; color: string | null; sortKey: number }[] => {
-    switch (groupBy) {
-      case 'project': {
-        const p = projects.find((x) => x.id === e.projectId)
-        return [{ id: e.projectId ?? '__none__', label: p?.name ?? 'No project', color: p?.color ?? null, sortKey: 0 }]
-      }
-      case 'client': {
-        const p = projects.find((x) => x.id === e.projectId)
-        const cl = clients.find((x) => x.id === p?.clientId)
-        return [{ id: cl?.id ?? '__none__', label: cl?.name ?? 'No client', color: null, sortKey: 0 }]
-      }
-      case 'tag': {
-        if (e.tagIds.length === 0)
-          return [{ id: '__none__', label: 'No tags', color: null, sortKey: 0 }]
-        return e.tagIds.map((id) => ({
-          id,
-          label: tags.find((t) => t.id === id)?.name ?? '(deleted tag)',
-          color: null,
-          sortKey: 0,
-        }))
-      }
-      case 'description': {
-        const label = e.description || '(no description)'
-        return [{ id: label, label, color: null, sortKey: 0 }]
-      }
-      case 'day': {
-        const day = startOfDay(e.start)
-        return [{ id: String(day), label: fmtDayLabel(day), color: null, sortKey: day }]
-      }
-    }
+  const currentParams = (): SavedReport['params'] => ({
+    from: range.start,
+    to: range.end,
+    groupBy,
+    rounding,
+    roundingDir,
+    filter,
+  })
+
+  const saveReport = async () => {
+    const name = prompt('Report name:')
+    if (!name?.trim()) return
+    await reportsApi.create(name.trim(), currentParams())
+    await queryClient.invalidateQueries({ queryKey: ['reports'] })
+    showToast('Report saved.', 'success')
   }
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, GroupRow>()
-    for (const e of entries) {
-      const ms = dur(e)
-      const amount = amountForMs(e, ms, projects, settings)
-      for (const g of groupsOf(e)) {
-        const row =
-          map.get(g.id) ??
-          { ...g, ms: 0, amount: 0, sub: new Map<string, number>() }
-        row.ms += ms
-        row.amount += amount
-        const subLabel =
-          groupBy === 'description'
-            ? (projects.find((p) => p.id === e.projectId)?.name ?? 'No project')
-            : e.description || '(no description)'
-        row.sub.set(subLabel, (row.sub.get(subLabel) ?? 0) + ms)
-        map.set(g.id, row)
-      }
-    }
-    const rows = [...map.values()]
-    if (groupBy === 'day') rows.sort((a, b) => a.sortKey - b.sortKey)
-    else rows.sort((a, b) => b.ms - a.ms)
-    // stable palette colors for groupings without their own color
-    rows.forEach((row, i) => {
-      if (!row.color) row.color = row.id === '__none__' ? 'var(--color-mist-500)' : PROJECT_COLORS[i % PROJECT_COLORS.length]
-    })
-    return rows
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, groupBy, projects, clients, tags, rounding, roundingDir, settings])
+  const applySaved = (r: SavedReport) => {
+    setPreset('custom')
+    setCustomStart(toDateInput(r.params.from))
+    setCustomEnd(toDateInput(r.params.to - 1))
+    setGroupBy(r.params.groupBy)
+    setRounding(r.params.rounding)
+    setRoundingDir(r.params.roundingDir)
+    setFilter(r.params.filter ?? 'all')
+    setSavedOpen(false)
+  }
+
+  const shareSaved = async (r: SavedReport) => {
+    const updated = r.shareToken ? r : await reportsApi.share(r.id)
+    await queryClient.invalidateQueries({ queryKey: ['reports'] })
+    const url = `${window.location.origin}/r/${updated.shareToken}`
+    await navigator.clipboard.writeText(url)
+    showToast('Share link copied to clipboard.', 'success')
+  }
+
+  const unshareSaved = async (r: SavedReport) => {
+    await reportsApi.unshare(r.id)
+    await queryClient.invalidateQueries({ queryKey: ['reports'] })
+    showToast('Share link revoked.', 'info')
+  }
+
+  const deleteSaved = async (r: SavedReport) => {
+    if (!confirm(`Delete saved report “${r.name}”?`)) return
+    await reportsApi.remove(r.id)
+    await queryClient.invalidateQueries({ queryKey: ['reports'] })
+  }
+
+  const uninvoiced = entries.filter((e) => e.billable && e.invoicedAt === null)
+
+  const markInvoiced = async () => {
+    if (uninvoiced.length === 0) return
+    if (!confirm(`Mark ${uninvoiced.length} billable entries in this range as invoiced?`)) return
+    await entriesApi.markInvoiced(uninvoiced.map((e) => e.id), true)
+    await queryClient.invalidateQueries({ queryKey: qk.entries })
+    showToast(`${uninvoiced.length} entries marked as invoiced.`, 'success')
+  }
 
   const exportCsv = () => {
     const rows: string[][] = [
-      ['Description', 'Project', 'Client', 'Tags', 'Billable', 'Start date', 'Start time', 'End time', 'Duration', 'Amount', 'Currency'],
+      ['Description', 'Project', 'Client', 'Tags', 'Billable', 'Invoiced', 'Start date', 'Start time', 'End time', 'Duration', 'Amount', 'Currency'],
     ]
     for (const e of entries) {
       const project = projects.find((p) => p.id === e.projectId)
@@ -192,6 +197,7 @@ export const ReportsPage = () => {
         client?.name ?? '',
         e.tagIds.map((id) => tags.find((t) => t.id === id)?.name ?? '').filter(Boolean).join('; '),
         e.billable ? 'yes' : 'no',
+        e.invoicedAt !== null ? 'yes' : 'no',
         toDateInput(e.start),
         fmtClock(e.start, '24'),
         fmtClock(e.stop, '24'),
@@ -208,10 +214,11 @@ export const ReportsPage = () => {
   }
 
   const fmtEntryCount = (e: TimeEntry[]) => `${e.length} ${e.length === 1 ? 'entry' : 'entries'}`
+  const { rows: grouped, totalMs, billableMs, billableAmount } = report
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 px-6 py-6">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="print-hide flex flex-wrap items-center gap-2">
         {PRESETS.map(({ key, label }) => (
           <button
             key={key}
@@ -240,13 +247,66 @@ export const ReportsPage = () => {
             className={`field h-8 px-2 font-mono text-xs ${preset === 'custom' ? 'border-accent-500/70' : ''}`}
           />
         </div>
-        <button className="btn-ghost ml-auto h-8 text-xs" onClick={exportCsv} disabled={entries.length === 0}>
-          <Icon name="download" size={14} />
-          Export CSV
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative" ref={savedRef}>
+            <button className="btn-ghost h-8 text-xs" onClick={() => setSavedOpen((o) => !o)}>
+              Saved reports
+            </button>
+            {savedOpen && (
+              <div className="menu top-full right-0 mt-1 w-80">
+                {savedReports.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-mist-500">No saved reports yet.</p>
+                )}
+                {savedReports.map((r) => (
+                  <div key={r.id} className="flex items-center gap-1">
+                    <button className="menu-item min-w-0 flex-1" onClick={() => applySaved(r)}>
+                      <span className="truncate">{r.name}</span>
+                      <span className="ml-auto font-mono text-[10px] text-mist-500">
+                        {toDateInput(r.params.from)}
+                      </span>
+                    </button>
+                    <button
+                      className={`icon-btn shrink-0 ${r.shareToken ? 'text-accent-500' : ''}`}
+                      title={r.shareToken ? 'Copy share link (already public)' : 'Create share link'}
+                      onClick={() => void shareSaved(r)}
+                    >
+                      <Icon name="upload" size={13} />
+                    </button>
+                    {r.shareToken && (
+                      <button
+                        className="icon-btn shrink-0"
+                        title="Revoke share link"
+                        onClick={() => void unshareSaved(r)}
+                      >
+                        <Icon name="x" size={13} />
+                      </button>
+                    )}
+                    <button
+                      className="icon-btn shrink-0 hover:text-danger-500"
+                      title="Delete"
+                      onClick={() => void deleteSaved(r)}
+                    >
+                      <Icon name="trash" size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button className="btn-ghost h-8 text-xs" onClick={() => void saveReport()}>
+            Save report
+          </button>
+          <button className="btn-ghost h-8 text-xs" onClick={() => window.print()}>
+            Print / PDF
+          </button>
+          <button className="btn-ghost h-8 text-xs" onClick={exportCsv} disabled={entries.length === 0}>
+            <Icon name="download" size={14} />
+            CSV
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+      <div className="print-hide flex flex-wrap items-center gap-2 text-xs">
         <span className="text-mist-500">Group by</span>
         <select
           value={groupBy}
@@ -281,6 +341,24 @@ export const ReportsPage = () => {
             <option value="up">up</option>
             <option value="down">down</option>
           </select>
+        )}
+        <span className="ml-3 text-mist-500">Show</span>
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as ReportFilter)}
+          className="field h-8 px-2 text-xs"
+        >
+          {FILTERS.map((f) => (
+            <option key={f.key} value={f.key}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        {uninvoiced.length > 0 && (
+          <button className="btn-ghost ml-auto h-8 text-xs" onClick={() => void markInvoiced()}>
+            <Icon name="check" size={13} />
+            Mark {uninvoiced.length} as invoiced
+          </button>
         )}
       </div>
 

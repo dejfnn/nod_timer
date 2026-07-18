@@ -16,12 +16,13 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
 
-  clients     Client[]
-  projects    Project[]
-  tags        Tag[]
-  timeEntries TimeEntry[]
-  running     RunningEntry?
-  settings    Settings?
+  clients      Client[]
+  projects     Project[]
+  tags         Tag[]
+  timeEntries  TimeEntry[]
+  running      RunningEntry?
+  settings     Settings?
+  savedReports SavedReport[]
 }
 
 model Client {
@@ -45,6 +46,8 @@ model Project {
   client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   rate     Float?
   archived Boolean @default(false)
+  /** time estimate in hours; null = no estimate */
+  estimateHours Float?
 
   timeEntries TimeEntry[]
 
@@ -72,10 +75,26 @@ model TimeEntry {
   billable    Boolean  @default(false)
   start       BigInt
   stop        BigInt
+  /** ms timestamp when the entry was marked invoiced; null = not invoiced */
+  invoicedAt  BigInt?
 
   @@index([userId])
   @@index([userId, start])
   @@index([projectId])
+}
+
+// A saved report configuration; shareToken (when set) exposes it read-only
+// at /public/reports/:token without authentication.
+model SavedReport {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  params     Json
+  shareToken String?  @unique
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
 
 // At most one running timer per user (userId is unique). projectId is kept as a

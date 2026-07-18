@@ -158,3 +158,31 @@
     background-repeat: no-repeat;
   }
 }
+
+/* Print / PDF export: light background, hide chrome, let content flow. */
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  body * {
+    color: #111 !important;
+    border-color: #ccc !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+  .card {
+    background: #fff !important;
+  }
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  main {
+    min-height: 0 !important;
+  }
+}

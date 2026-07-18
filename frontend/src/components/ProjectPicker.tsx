@@ -48,6 +48,7 @@ export const ProjectPicker = ({ value, onChange, compact = false }: ProjectPicke
       clientId: null,
       rate: null,
       archived: false,
+      estimateHours: null,
     })
     onChange(project.id)
     setQuery('')
